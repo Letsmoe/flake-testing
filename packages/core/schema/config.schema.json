@@ -1,0 +1,42 @@
+{
+	"required": [],
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"properties": {
+		"exclude": {
+			"type": "array",
+			"items": {
+				"type": "string"
+			},
+			"default": [],
+			"description": "A list of regular expressions that will be ignored when searching for files."
+		},
+		"watch": {
+			"type": "boolean",
+			"default": false,
+			"description": "Watch for changes to the source files and restart the tests once a change is detected."
+		},
+		"watchOptions": {
+			"properties": {
+				"poll": {
+					"type": "number",
+					"default": 500,
+					"description": "The time in milliseconds to wait between checking the watched folder for file changes."
+				},
+				"aggregateTimeout": {
+					"type": "number",
+					"default": 1000,
+					"description": "The time in milliseconds to wait for more changes before emitting a change event."
+				},
+				"ignored": {
+					"type": "array",
+					"items": {
+						"type": "string"
+					},
+					"default": [],
+					"description": "A list of regular expressions for files to ignore when watching for changes."
+				}
+			}
+		}
+	}
+}
