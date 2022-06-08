@@ -1,25 +1,25 @@
 {
-  "name": "@flake-testing/core",
-  "version": "1.0.0",
-  "type": "module",
-  "description": "Core package of flake-testing.",
-  "main": "index.js",
-  "scripts": {
-    "test": "flake --config=test/flake.config.json --dir=test/"
-  },
-  "keywords": [
-    "unit-tests",
-    "end-to-end-testing"
-  ],
-  "author": "letsmoe",
-  "license": "MIT",
-  "dependencies": {
-    "colarg": "^1.1.4",
-    "js-yaml": "^4.1.0",
-    "jsonschema": "^1.4.1"
-  },
-  "devDependencies": {
-    "@types/js-yaml": "^4.0.5",
-    "@types/node": "^17.0.41"
-  }
+	"name": "@flake-testing/core",
+	"version": "1.0.0",
+	"type": "module",
+	"description": "Core package of flake-testing.",
+	"main": "index.js",
+	"scripts": {
+		"test": "flake --config=test/flake.config.json --dir=test/"
+	},
+	"keywords": [
+		"unit-tests",
+		"end-to-end-testing"
+	],
+	"author": "letsmoe",
+	"license": "MIT",
+	"dependencies": {
+		"colarg": "^1.1.4",
+		"js-yaml": "^4.1.0",
+		"jsonschema": "^1.4.1"
+	},
+	"devDependencies": {
+		"@types/js-yaml": "^4.0.5",
+		"@types/node": "^17.0.41"
+	}
 }

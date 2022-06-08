@@ -5,6 +5,7 @@ var defaultConfig = {
         poll: 500,
         aggregateTimeout: 1000,
         ignored: []
-    }
+    },
+    dir: "./"
 };
 export { defaultConfig };

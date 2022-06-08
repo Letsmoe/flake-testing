@@ -1,0 +1,110 @@
+{
+	"required": [],
+	"$schema": "http://json-schema.org/draft-07/schema#",
+	"type": "object",
+	"properties": {
+		"identifier": {
+			"type": "string",
+			"minLength": 32,
+			"maxLength": 32,
+			"pattern": "^[a-fA-F0-9]{32}$",
+			"description": "A transaction identifier which will be generated on the creation of a new transaction used to uniquely identify any transaction that has been started. This might be saved to disk."
+		},
+		"result": {
+			"type": "object",
+			"properties": {
+				"status": {
+					"type": "string",
+					"enum": ["success", "failure"],
+					"description": "The status of the transaction, whether the test suite succeeded or failed."
+				},
+				"error": {
+					"type": "object",
+					"properties": {
+						"stack": {
+							"type": "string",
+							"description": "The stack trace of the error."
+						},
+						"message": {
+							"type": "string",
+							"description": "The error message."
+						}
+					},
+					"required": ["stack", "message"],
+					"description": "An object containing information about an error that might have occurred during testing"
+				},
+				"resultSet": {
+					"type": "array",
+					"items": [
+						{
+							"type": "object",
+							"properties": {
+								"title": {
+									"type": "string",
+									"description": "The title of the test suite."
+								},
+								"resultSet": {
+									"type": "array",
+									"items": [
+										{
+											"type": "object",
+											"properties": {
+												"title": {
+													"type": "string",
+													"description": "The title of the test case."
+												},
+												"resultSet": {
+													"type": "array",
+													"items": [
+														{
+															"type": "object",
+															"properties": {
+																"title": {
+																	"type": "string",
+																	"description": "The result string that was returned from the test, something like 'expected 15 to equal 15'."
+																},
+																"line_number": {
+																	"type": "integer",
+																	"description": "The line number where to find the execution of the `expect` function, used for backtracking."
+																},
+																"input": {
+																	"description": "The value provided as input to the test runner, skip on objects."
+																},
+																"expected": {
+																	"description": "The value the test runner was expecting to see, skip on objects."
+																},
+																"status": {
+																	"type": "string",
+																	"enum": ["success", "failure"],
+																	"description": "The status of the test, whether it passed or failed."
+																},
+																"execution_time_ms": {
+																	"type": "integer",
+																	"description": "The time in milliseconds it took to execute the test."
+																}
+															},
+															"required": [
+																"title",
+																"line_number",
+																"input",
+																"expected",
+																"status",
+																"execution_time_ms"
+															]
+														}
+													]
+												}
+											},
+											"required": ["title", "resultSet"]
+										}
+									]
+								}
+							},
+							"required": ["title", "resultSet"]
+						}
+					]
+				}
+			}
+		}
+	}
+}

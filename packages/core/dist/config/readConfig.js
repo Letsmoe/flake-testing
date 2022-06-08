@@ -14,7 +14,7 @@ import { defaultConfig } from "./defaultConfig.js";
  * @date 6/8/2022 - 7:41:19 PM
  *
  * @param {string} dirPath The path to the directory that contains the config file.
- * @returns {object} A config object.
+ * @returns {Promise<FlakeConfigObject>} A config object.
  */
 function readConfig(dirPath) {
     /**

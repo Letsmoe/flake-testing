@@ -37,6 +37,11 @@
 					"description": "A list of regular expressions for files to ignore when watching for changes."
 				}
 			}
+		},
+		"dir": {
+			"type": "string",
+			"description": "The directory to search for test files.",
+			"default": "./"
 		}
 	}
 }

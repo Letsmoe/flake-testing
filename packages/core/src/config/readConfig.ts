@@ -7,6 +7,7 @@
 
 import * as fs from "fs";
 import * as yaml from "js-yaml";
+import { FlakeConfigObject } from "./config.type.js";
 import { defaultConfig } from "./defaultConfig.js";
 
 /**
@@ -16,9 +17,9 @@ import { defaultConfig } from "./defaultConfig.js";
  * @date 6/8/2022 - 7:41:19 PM
  * 
  * @param {string} dirPath The path to the directory that contains the config file.
- * @returns {object} A config object.
+ * @returns {Promise<FlakeConfigObject>} A config object.
  */
-function readConfig(dirPath: string) {
+function readConfig(dirPath: string): Promise<FlakeConfigObject> {
 	
 	/**
 	 * There are multiple names a config should have, it can also either be a .js or a .json file meaning we'll have to look for both variants.
@@ -31,7 +32,7 @@ function readConfig(dirPath: string) {
 	 * Since we might need to import it is better to return a promise so we can await a potential async import.
 	 */
 
-	return new Promise<object>((resolve, reject) => {
+	return new Promise<FlakeConfigObject>((resolve, reject) => {
 		const JSON_TEST = /flake(?:\.config)?\.json/;
 		const JS_TEST = /flake(?:\.config)?\.js/;
 		const YAML_TEST = /flake(?:\.config)?\.yaml/;
@@ -57,7 +58,7 @@ function readConfig(dirPath: string) {
 				let obj = yaml.load(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
 				);
-				resolve(obj as object);
+				resolve(obj as FlakeConfigObject);
 			}
 		}
 

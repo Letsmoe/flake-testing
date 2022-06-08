@@ -1,6 +1,8 @@
 import { validateConfig } from "./config/validateConfig.js";
+import { ResultReader } from "./class.ResultReader.js";
 import { readConfig } from "./config/readConfig.js";
 var WORKING_DIRECTORY = process.cwd();
 readConfig(WORKING_DIRECTORY).then(function (config) {
-    console.log(validateConfig(config));
+    validateConfig(config);
+    var resultReader = new ResultReader(config);
 });

@@ -22,8 +22,14 @@ interface FlakeConfigObject {
 		ignored?: string[];
 		[k: string]: unknown;
 	};
+	/**
+	 * The directory to search for test files.
+	 */
+	dir?: string;
 	[k: string]: unknown;
 }
 
+type SharedConfigObject = FlakeConfigObject & {onDidValidate: (x: FlakeConfigObject) => void}
 
-export { FlakeConfigObject }
+
+export { FlakeConfigObject, SharedConfigObject }
