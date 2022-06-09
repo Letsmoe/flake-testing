@@ -31,7 +31,7 @@ function expect(result, register = true) {
             message: `expected '${r}' to be falsy`,
             pass: r ? false : true,
         }),
-        toBeInDocument: (r) => ({
+        toBeInTheDocument: (r) => ({
             message: `expected node to be in the document`,
             pass: document.contains(r),
         }),
@@ -42,6 +42,10 @@ function expect(result, register = true) {
         toBeIn: (r, parent) => ({
             message: `expected node to be in ${parent}`,
             pass: parent.contains(r),
+        }),
+        toBeChildOf: (r, parent) => ({
+            message: `expected node to be child of ${parent}`,
+            pass: r.parentNode == parent,
         })
     }, {
         set: () => false,
