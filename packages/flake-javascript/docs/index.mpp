@@ -1,0 +1,62 @@
+# Testing with flake-javascript
+Unlike other testing frameworks that use default functions to execute a piece of code, flake-js uses the standard [label](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/label) that is implemented into JavaScript by default.
+This means that any code written with flake-js in mind will be much smaller and less cluttered than what you would have to write with other utilities.
+
+Here is some sample code to back up that claim.
+
+```js
+function main() {
+	return 12;
+}
+
+// This is a test for the "main" function above, it should return true and therefore pass the test.
+$:
+	typeof main() === "number";
+```
+
+Compared to the same code tested in [Jest](https://jestjs.io/) this is much cleaner and easier to read once you got used to it.
+
+```js
+function main() {
+	return 12;
+}
+
+it(`Is a test for the "main" function above, it should return true and therefore pass the test.`, () => {
+	expect(typeof main()).toStrictEqual("number");
+});
+```
+
+
+## Hooks
+
+Even hooks can be used via using labels.
+The following hooks are supported.
+
+- [afterAll](./hooks/afterAll)
+- [afterEachSuccess](./hooks/afterEachSuccess)
+- [afterEachFail](./hooks/afterEachFail)
+- [beforeEach](./hooks/beforeEach)
+- [afterEach](./hooks/afterEach)
+
+```js
+function main() {
+	return 12;
+}
+
+afterAll: () => {
+	console.log("This is a hook that is run after every test was completed.");
+}
+
+// This is a test for the "main" function above, it should return true and therefore pass the test.
+$:
+	typeof main() === "number";
+```
+
+## Groups
+
+When it comes to testing we want to keep things organized, so we can easily find what we are looking for.
+Maybe we have two tests that are both related to the same thing.
+
+```js
+
+```

@@ -1,7 +1,19 @@
-import { describe, it, expect } from "../lib/test.js"
+import { hasSubstring } from "../lib/test.js";
+/**
+ * @every This should complete since the result is always true.
+ * @group succeed
+ */
 
-describe("a test", () => {
-	it("should return false", () => {
-		expect(true).toBe(false)
-	})
-})
+/**
+ * This is the next description where they @every won't apply
+ */
+
+afterAll: () => {
+	console.log("Succeeded")
+}
+
+$: hasSubstring("awd", "a") === false;
+
+/**
+ * We don't need anything else...
+ */
