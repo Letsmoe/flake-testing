@@ -47,18 +47,18 @@ function readConfig(dirPath: string): Promise<FlakeConfigObject> {
 				let obj = JSON.parse(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
 				);
-				resolve(obj);
+				resolve(Object.assign(defaultConfig, obj));
 			} else if (JS_TEST.test(file)) {
 				// If it matches the JavaScript test, import the default export from the file and return that.
 				import(`${dirPath}/${file}`).then((module) => {
-					resolve(module.default);
+					resolve(Object.assign(defaultConfig, module.default));
 				});
 			} else if (YAML_TEST.test(file)) {
 				// If it matches the YAML test, import the default export from the file and return that.
 				let obj = yaml.load(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
 				);
-				resolve(obj as FlakeConfigObject);
+				resolve(Object.assign(defaultConfig, obj) as FlakeConfigObject);
 			}
 		}
 

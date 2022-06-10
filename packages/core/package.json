@@ -3,7 +3,8 @@
 	"version": "1.0.0",
 	"type": "module",
 	"description": "Core package of flake-testing.",
-	"main": "index.js",
+	"main": "./dist/index.js",
+	"types": "./dist/index.d.ts",
 	"scripts": {
 		"test": "flake --config=test/flake.config.json --dir=test/"
 	},
@@ -14,9 +15,11 @@
 	"author": "letsmoe",
 	"license": "MIT",
 	"dependencies": {
+		"chokidar": "^3.5.3",
 		"colarg": "^1.1.4",
 		"js-yaml": "^4.1.0",
-		"jsonschema": "^1.4.1"
+		"jsonschema": "^1.4.1",
+		"wait-console-input": "^0.1.7"
 	},
 	"devDependencies": {
 		"@types/js-yaml": "^4.0.5",

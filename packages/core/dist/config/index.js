@@ -10,3 +10,4 @@ readConfig(WORKING_DIRECTORY).then(function (conf) {
     config.onDidValidate(conf);
 });
 export { config, WORKING_DIRECTORY };
+//# sourceMappingURL=index.js.map

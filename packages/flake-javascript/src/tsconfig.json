@@ -8,6 +8,7 @@
 		"outDir": "../lib/",
 		"module": "es2020",
 		"allowSyntheticDefaultImports": true,
+		"strict": false
 	},
 	"compileOnSave": true
 }

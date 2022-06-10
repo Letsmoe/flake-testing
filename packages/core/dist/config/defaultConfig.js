@@ -9,3 +9,4 @@ var defaultConfig = {
     dir: "./"
 };
 export { defaultConfig };
+//# sourceMappingURL=defaultConfig.js.map

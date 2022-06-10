@@ -1,19 +1,19 @@
-import { hasSubstring } from "../lib/test.js";
-/**
- * @every This should complete since the result is always true.
- * @group succeed
- */
-
-/**
- * This is the next description where they @every won't apply
- */
-
-afterAll: () => {
-	console.log("Succeeded")
+function main() {
+	return 42;
 }
 
-$: hasSubstring("awd", "a") === false;
+afterAll:() => {
+	console.log(result);
+}
 
-/**
- * We don't need anything else...
- */
+let result = main()
+const x = 5;
+var y = {
+	nice: true
+}
+// @every This is a test for the "main" function above, it should return true and therefore pass the test.
+// @group main
+$:
+	typeof result === "string"
+$:
+	result == 42

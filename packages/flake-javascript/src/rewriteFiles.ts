@@ -5,6 +5,12 @@ import { fileURLToPath } from "url";
 import escodegen from "escodegen";
 import * as walk from "acorn-walk";
 
+type VariableDeclarationObject = acorn.Node & {
+	declarations: any[];
+	id: any;
+	kind: string;
+};
+
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const code = fs.readFileSync(
@@ -86,7 +92,7 @@ walk.ancestor(ast, {
 				}
 			}
 		}
-		if (name.startsWith("assert") || name === "$") {
+		if (name.startsWith("assert") || name.startsWith("$")) {
 			node.type = "ExpressionStatement";
 			node.expression = RewriteLabeledStatementBody(
 				node.body,
@@ -95,6 +101,8 @@ walk.ancestor(ast, {
 
 			if (name.startsWith("assert__")) {
 				assignedGroup = name.substring(8);
+			} else if (name.startsWith("$__")) {
+				assignedGroup = name.substring(3);
 			}
 
 			if (assignedGroup) {
@@ -109,7 +117,7 @@ walk.ancestor(ast, {
 			node.type = "ExpressionStatement";
 			node.expression = CallExpression("_register_action", [
 				Literal(name),
-				node.body.expression
+				node.body.expression,
 			]);
 			delete node.label;
 			delete node.body;
@@ -122,13 +130,20 @@ walk.ancestor(ast, {
 			{
 				type: "ArrayExpression",
 				elements: node.specifiers.map((specifier: any) => {
-					let isDefault = specifier.type === "ImportDefaultSpecifier"
+					let isDefault = specifier.type === "ImportDefaultSpecifier";
 					return {
 						type: "ObjectExpression",
 						properties: [
-							Property("name", Literal(isDefault ? specifier.local.name : specifier.imported.name)),
+							Property(
+								"name",
+								Literal(
+									isDefault
+										? specifier.local.name
+										: specifier.imported.name
+								)
+							),
 							Property("local", Literal(specifier.local.name)),
-							Property("default", Literal(isDefault))
+							Property("default", Literal(isDefault)),
 						],
 					};
 				}),
@@ -138,16 +153,113 @@ walk.ancestor(ast, {
 		imports.push({
 			source: node.source.value,
 			specifiers: node.specifiers.map((specifier: any) => {
-				let isDefault = specifier.type === "ImportDefaultSpecifier"
+				let isDefault = specifier.type === "ImportDefaultSpecifier";
 				return {
-					name: isDefault ? specifier.local.name : specifier.imported.name,
+					name: isDefault
+						? specifier.local.name
+						: specifier.imported.name,
 					local: specifier.local.name,
-					default: isDefault
+					default: isDefault,
 				};
 			}),
 		});
 		delete node.source;
 		delete node.specifiers;
+	},
+
+	/**
+	 * We receive an assignment expression like this: `const x = 5`
+	 * We want to rewrite this to be something like this: `const x = _do_register_variable("x", 5, {line: __LINE__, from: __START__, to: __END__, type: "var"})`
+	 * @param node The node to rewrite
+	 */
+	VariableDeclaration(node: VariableDeclarationObject) {
+		let declarations = node.declarations;
+
+		for (const declaration of declarations) {
+			/**
+			 * The object looks like this:
+			 * {
+			 *	"type": "VariableDeclaration",
+			 *	"declarations": [
+			 *		{
+			 *		"type": "VariableDeclarator",
+			 *		"id": {
+			 *			"type": "Identifier",
+			 *			"name": "q"
+			 *		},
+			 *		"init": {
+			 *			"type": "Literal",
+			 *			"value": 5,
+			 *			"raw": "5"
+			 *		}
+			 *		},
+			 *		{
+			 *		"type": "VariableDeclarator",
+			 *		"id": {
+			 *			"type": "Identifier",
+			 *			"name": "b"
+			 *		},
+			 *		"init": {
+			 *			"type": "Literal",
+			 *			"value": 4,
+			 *			"raw": "4"
+			 *		}
+			 *		}
+			 *	],
+			 *	"kind": "var"
+			 *	}
+			 *
+			 * Which we want to rewrite to this:
+			 * 	```
+			 * 		var q = _do_register_variable("q", 5, {line: __LINE__, from: __START__, to: __END__, type: "var"}),
+			 *			b = _do_register_variable("b", 4, {line: __LINE__, from: __START__, to: __END__, type: "var"});
+			 *	```
+			 */
+			let id = declaration.id.name;
+			let init = declaration.init;
+			// Get the current line from how far we've already got character wise
+			let line = getCurrentLine(node.start);
+
+			let newInit = CallExpression("_do_register_variable", [
+				Literal(id),
+				init,
+				{
+					type: "ObjectExpression",
+					properties: [
+						Property("line", Literal(line)),
+						Property("from", Literal(node.start)),
+						Property("to", Literal(node.end)),
+						Property("type", Literal(node.kind)),
+					],
+				},
+			]);
+
+			declaration.init = newInit;
+		}
+	},
+	ExpressionStatement(node: any) {
+		// We only want to publish changes to variables ("AssignmentExpression")
+		if (node.expression.type !== "AssignmentExpression") {
+			return;
+		}
+		let left = node.expression.left;
+		let leftName = left.name;
+
+		// We now change the right hand side of the assignment to publish the changes to the listener (_do_register_variable)
+		let newRight = CallExpression("_do_register_variable", [
+			Literal(leftName),
+			node.expression.right,
+			{
+				type: "ObjectExpression",
+				properties: [
+					Property("line", Literal(getCurrentLine(node.start))),
+					Property("from", Literal(node.start)),
+					Property("to", Literal(node.end)),
+					Property("type", Literal("reassign")),
+				],
+			},
+		]);
+		node.expression.right = newRight;
 	},
 });
 
@@ -188,31 +300,43 @@ function Literal(value: any, raw?: string) {
 	};
 }
 
-function RewriteLabeledStatementBody(body: any, comments: string[]) {
-	let bodyAsString = escodegen.generate(body.expression);
+function getCurrentLine(start: number) {
 	// Calculate the line number from the start of the node by looking at the characters in front of it and subtracting the length of each line until we reach the start of the node.
 	let lineNumber = 1;
 	let lineLength = 0;
 	for (let line of code.split("\n")) {
-		lineLength += line.length + 1;
-		if (body.start - lineLength > 0) {
+		lineLength += line.length;
+		if (start - lineLength > 0) {
 			lineNumber++;
 		} else {
 			break;
 		}
 	}
+	return lineNumber;
+}
+
+function RewriteLabeledStatementBody(body: any, comments: string[]) {
+	let bodyAsString = escodegen.generate(body.expression);
+	let lineNumber = getCurrentLine(body.start);
 
 	let newBody = CallExpression("_make_assertion", [
-		Literal(counter),
-		Literal(lineNumber),
 		{
-			type: "ArrayExpression",
-			elements: comments.map((x) => {
-				return Literal(x);
-			}),
-		},
-		Literal(bodyAsString),
-		body.expression,
+			type: "ObjectExpression",
+			properties: [
+				Property("line", Literal(lineNumber)),
+				Property("from", Literal(body.start)),
+				Property("to", Literal(body.end)),
+				Property("name", Literal(counter)),
+				Property("description", {
+					type: "ArrayExpression",
+					elements: comments.map((x) => {
+						return Literal(x);
+					}),
+				}),
+				Property("content", Literal(bodyAsString)),
+				Property("result", body.expression)
+			]
+		}
 	]);
 	// Increment the counter so we don't generate the same name again.
 	counter++;
@@ -220,27 +344,25 @@ function RewriteLabeledStatementBody(body: any, comments: string[]) {
 	return newBody;
 }
 
-
-
-
 var output = "";
 
-imports.forEach(importStatement => {
-	importStatement.specifiers.forEach(specifier => {
+imports.forEach((importStatement) => {
+	importStatement.specifiers.forEach((specifier) => {
 		if (specifier.default) {
 			output += `import ${specifier.local} from "${importStatement.source}";\n`;
 		} else {
 			output += `import { ${specifier.name} as ${specifier.local} } from "${importStatement.source}";\n`;
 		}
-	})
-})
+	});
+});
 
-output += '\n';
-output += `export default function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}) {
+output += "\n";
+output += `export default function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}, _do_register_variable = (name, value) => {return value;}) {
+/* @action didPublishCount */
 (_set_await_assertion_count(${counter}));
 ${escodegen.generate(ast)}
+/* @action didPublishGroups */
 (_publish_named_groups(${JSON.stringify(namedGroups)}));
-};`
-
+};`;
 
 console.log(output);

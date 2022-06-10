@@ -1,71 +1,122 @@
-import * as fs from 'fs';
+import { OutputObject, ImportObject, AssertionObject } from "@flake-testing/core"
+import { ResultPipe } from "@flake-testing/core"
+import { ResultPrinter } from "@flake-testing/core";
 
 const TEST_FILE = process.cwd() + "/test/output.test.js";
+const output: OutputObject = {
+	inputFile: process.cwd() + "/test/test.test.js",
+	testFile: TEST_FILE,
+	identifier: "test",
+	status: true,
+	result: {
+		groups: {},
+		assertions: {}
+	},
+	imports: [],
+	snapshots: [],
+	time: 0
+};
 
-type SpecifierObject = {
-	name: string;
-	local: string;
-	default: boolean;
-}
-type ImportObject = { source: string; specifiers: SpecifierObject[] };
+class Scope {
+	private properties : {};
+	constructor(initial: {} = {}) {
+		this.properties = initial;
+	}
+	set(name: string, value: any) {
+		this.properties[name] = value;
+	}
 
-function assertionReceiver(name: string, line: number, description: string[], content: string, result: any) {
-	//console.log(`${name} ${line} ${description.join(" ")}`);
-	//console.log(content);
-	//console.log(result);
-	if (!result) {
-		console.error(`${name} ${line} ${description.join(" ")}`);
-		let file = fs.readFileSync(process.cwd() + "/test/test.test.js", "utf8").toString();
+	get(name: string) {
+		return this.properties[name];
+	}
 
-		// Print the line where the error occurred as well as the next 4 lines.
-		console.log(file.split("\n").slice(line - 2, line + 4).map((x, i) => i === 1 ? ">>  " + x : "    " + x).join("\n"));
+	getAll() {
+		return Object.assign({}, this.properties);
 	}
 }
 
-function namedGroupReceiver(groups: {[key: string]: number[]}) {
-	//console.log(groups);
+const currentScope = new Scope();
+
+function receiveVariableAssignment(name: string, value: any, {line, from, to, type}) {
+	currentScope.set(name, value);
+	output.snapshots.push({
+		time: Date.now(),
+		event: {
+			type: type,
+			line,
+			from,
+			to,
+			name,
+			value: value
+		},
+		scope: currentScope.getAll()
+	})
+	return value
+}
+
+function receiveAssertion({name, line, from, to, description, content, result}) {
+	output.result.assertions[name] = {
+		line,
+		from: from,
+		to: to,
+		description: description.join(" "),
+		content,
+		// Check if the result is truthy
+		result: !(!result)
+	}
+}
+
+function receiveNamedGroups(groups: {[key: string]: number[]}) {
+	output.result.groups = groups;
 }
 
 const actions = {}
 
 function actionRegisterReceiver(name: string, callback: Function) {
-	//console.log(`Registering action ${name}`);
 	if (!actions[name]) actions[name] = [];
 	actions[name].push(callback)
 }
 
-function countReceiver(count: number) {
-	//console.log(`${count} assertions`);
+function receiveCount(count: number) {
 	expectCount = count;
 }
 var expectCount = 0;
 
-function moduleImportReceiver(importStatement: ImportObject) {
-	//console.log(importStatement);
+function receiveModuleImport(importStatement: ImportObject) {
+	output.imports.push(importStatement);
 }
 
 function getResults() {
-	return new Promise<void>((resolve, reject) => {
+	return new Promise<OutputObject>((resolve, reject) => {
+		let start = Date.now();
 		import(TEST_FILE).then(module => {
 			// The test function is inside the modules default export
 			// Execute the modules default export function.
 			let count = 0;
-			module.default((...args: any[]) => {
-				assertionReceiver(...args);
+			module.default(({line, from, to, content, description, name, result}) => {
+				receiveAssertion({line, from, to, content, description, name, result});
 				count++
 				if (count === expectCount) {
 					actions["afterAll"]?.forEach(action => action());
-					resolve();
+					output.status = Object.values(output.result.assertions).every((x: AssertionObject) => x.result);
+					output.startTime = start;
+					output.endTime = Date.now();
+					resolve(output);
 				}
-			}, namedGroupReceiver, countReceiver, moduleImportReceiver, actionRegisterReceiver)
+			}, receiveNamedGroups, receiveCount, receiveModuleImport, actionRegisterReceiver, receiveVariableAssignment)
 		})
 	})
 }
 
-import(TEST_FILE).then(module => {
-	const code = module.default;
+getResults().then(out => {
+	let pipe = new ResultPipe();
+	pipe.ready = () => {
+		let printer = new ResultPrinter(pipe)
 
-	getResults().then(results => {
-		console.log(results);
-	})
+		let id = pipe.open();
+		out.identifier = id;
+		pipe.write(id, out);
+
+		printer.print(id);
+	}
 })

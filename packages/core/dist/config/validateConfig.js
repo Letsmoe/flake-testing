@@ -16,3 +16,4 @@ function validateConfig(config) {
     return result.valid;
 }
 export { validateConfig };
+//# sourceMappingURL=validateConfig.js.map

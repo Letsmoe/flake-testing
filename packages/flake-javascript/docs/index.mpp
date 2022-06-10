@@ -60,3 +60,38 @@ Maybe we have two tests that are both related to the same thing.
 ```js
 
 ```
+
+## JSDoc
+Since flake-js doesn't use strings to denote what is being bundled with what, we can use JS comments and the popular JSDoc standard to describe what we want to do.
+
+### @group {{GROUP_NAME: string}}
+Denote the group to assign the following assert statement to, note that assigning to groups can also be done in the name of the assert call.
+
+```js
+/**
+ * A test in the "main" group
+ * @group main
+ */
+
+const resultMain = main();
+$:
+	resultMain === 42;
+$__main:
+	typeof resultMain === "number";
+```
+
+### @every {{DESCRIPTION: string}}
+Assign every following assert statement the same description until the next description is reached.
+
+```js
+
+/**
+ * @every These are all the tests for the "main" function.
+ */
+const resultMain = main();
+$:
+	typeof resultMain === "number";
+$:
+	resultMain = 42;
+
+```

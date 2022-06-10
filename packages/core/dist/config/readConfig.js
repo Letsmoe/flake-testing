@@ -40,18 +40,18 @@ function readConfig(dirPath) {
             if (JSON_TEST.test(file)) {
                 // If it does, return the file contents as JSON.
                 var obj = JSON.parse(fs.readFileSync("".concat(dirPath, "/").concat(file), "utf8"));
-                resolve(obj);
+                resolve(Object.assign(defaultConfig, obj));
             }
             else if (JS_TEST.test(file)) {
                 // If it matches the JavaScript test, import the default export from the file and return that.
                 import("".concat(dirPath, "/").concat(file)).then(function (module) {
-                    resolve(module.default);
+                    resolve(Object.assign(defaultConfig, module.default));
                 });
             }
             else if (YAML_TEST.test(file)) {
                 // If it matches the YAML test, import the default export from the file and return that.
                 var obj = yaml.load(fs.readFileSync("".concat(dirPath, "/").concat(file), "utf8"));
-                resolve(obj);
+                resolve(Object.assign(defaultConfig, obj));
             }
         }
         // We didn't find any files, so return the default config.
@@ -59,3 +59,4 @@ function readConfig(dirPath) {
     });
 }
 export { readConfig };
+//# sourceMappingURL=readConfig.js.map
