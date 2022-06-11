@@ -1,8 +1,8 @@
 {
-	"name": "@flake-testing/core",
+	"name": "@flake-universal/core",
 	"version": "1.0.0",
 	"type": "module",
-	"description": "Core package of flake-testing.",
+	"description": "Core package of flake-universal.",
 	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"scripts": {
