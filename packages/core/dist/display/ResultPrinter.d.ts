@@ -1,12 +1,14 @@
 import { ResultPipe } from "../class.ResultPipe";
-import { OutputObject } from "../types";
 declare class ResultPrinter {
     private pipe;
+    private result;
     constructor(pipe: ResultPipe);
     private formatResultInfo;
     private formatHeader;
     print(identifier: string): void;
+    private printMain;
     private formatSnapshots;
-    formatAssertions(r: OutputObject, channel: any): any;
+    showOptionsList(current: string): void;
+    formatAssertions(): any;
 }
 export { ResultPrinter };

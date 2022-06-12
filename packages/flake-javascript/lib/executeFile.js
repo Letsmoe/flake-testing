@@ -2,17 +2,18 @@ import { ResultPipe } from "@flake-testing/core";
 import { ResultPrinter } from "@flake-testing/core";
 const TEST_FILE = process.cwd() + "/test/output.test.js";
 const output = {
-    inputFile: process.cwd() + "/test/test.test.js",
+    inputFile: process.cwd() + "/test/main.test.js",
     testFile: TEST_FILE,
     identifier: "test",
     status: true,
     result: {
         groups: {},
-        assertions: {}
+        assertions: []
     },
     imports: [],
     snapshots: [],
-    time: 0
+    startTime: 0,
+    endTime: 0
 };
 class Scope {
     constructor(initial = {}) {
@@ -46,15 +47,16 @@ function receiveVariableAssignment(name, value, { line, from, to, type }) {
     return value;
 }
 function receiveAssertion({ name, line, from, to, description, content, result }) {
-    output.result.assertions[name] = {
+    output.result.assertions.push({
         line,
+        name,
         from: from,
         to: to,
         description: description.join(" "),
         content,
         // Check if the result is truthy
         result: !(!result)
-    };
+    });
 }
 function receiveNamedGroups(groups) {
     output.result.groups = groups;
@@ -85,7 +87,7 @@ function getResults() {
                 count++;
                 if (count === expectCount) {
                     (_a = actions["afterAll"]) === null || _a === void 0 ? void 0 : _a.forEach(action => action());
-                    output.status = Object.values(output.result.assertions).every((x) => x.result);
+                    output.status = output.result.assertions.every((x) => x.result);
                     output.startTime = start;
                     output.endTime = Date.now();
                     resolve(output);

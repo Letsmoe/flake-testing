@@ -1,49 +1,43 @@
 
 export default function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}, _do_register_variable = (name, value) => {return value;}) {
 /* @action didPublishCount */
-(_set_await_assertion_count(2));
+(_set_await_assertion_count(3));
 function main() {
     return 42;
 }
-_register_action('afterAll', () => {
-    console.log(result);
-});
 let result = _do_register_variable('result', main(), {
-    line: 9,
-    from: 75,
-    to: 94,
+    line: 5,
+    from: 33,
+    to: 52,
     type: 'let'
 });
-const x = _do_register_variable('x', 5, {
-    line: 10,
-    from: 95,
-    to: 107,
-    type: 'const'
-});
-var y = _do_register_variable('y', { nice: true }, {
-    line: 12,
-    from: 108,
-    to: 131,
-    type: 'var'
-});
 _make_assertion({
-    line: 17,
-    from: 258,
-    to: 284,
+    line: 8,
+    from: 131,
+    to: 144,
     name: 0,
-    description: ['This is a test for the "main" function above, it should return true and therefore pass the test.'],
-    content: 'typeof result === \'string\'',
-    result: typeof result === 'string'
+    description: ['We\'re testing the "main" function which returns 42 when called.'],
+    content: 'result === 42',
+    result: result === 42
 });
 _make_assertion({
-    line: 20,
-    from: 289,
-    to: 301,
+    line: 9,
+    from: 148,
+    to: 159,
     name: 1,
-    description: ['This is a test for the "main" function above, it should return true and therefore pass the test.'],
-    content: 'result == 42',
-    result: result == 42
+    description: ['We\'re testing the "main" function which returns 42 when called.'],
+    content: 'result > 43',
+    result: result > 43
+});
+_make_assertion({
+    line: 10,
+    from: 163,
+    to: 189,
+    name: 2,
+    description: ['We\'re testing the "main" function which returns 42 when called.'],
+    content: 'typeof result === \'number\'',
+    result: typeof result === 'number'
 });
 /* @action didPublishGroups */
-(_publish_named_groups({"main":[0]}));
+(_publish_named_groups({}));
 };

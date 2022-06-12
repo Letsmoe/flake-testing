@@ -6,7 +6,8 @@ var defaultConfig = {
         aggregateTimeout: 1000,
         ignored: []
     },
-    dir: "./"
+    dir: "./",
+    own: {}
 };
 export { defaultConfig };
 //# sourceMappingURL=defaultConfig.js.map

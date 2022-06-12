@@ -4,5 +4,6 @@ export declare type AssertionObject = {
     to: number;
     description: string;
     content: string;
+    name: string;
     result: boolean;
 };

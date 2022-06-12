@@ -26,6 +26,10 @@ interface FlakeConfigObject {
 	 * The directory to search for test files.
 	 */
 	dir?: string;
+	own?: {
+		dirPath?: string;
+		fileName?: string;
+	};
 	[k: string]: unknown;
 }
 

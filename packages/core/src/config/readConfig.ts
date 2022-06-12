@@ -47,22 +47,29 @@ function readConfig(dirPath: string): Promise<FlakeConfigObject> {
 				let obj = JSON.parse(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
 				);
+				obj.own.dirPath = dirPath
+				obj.own.fileName = dirPath + "/" + file
 				resolve(Object.assign(defaultConfig, obj));
 			} else if (JS_TEST.test(file)) {
 				// If it matches the JavaScript test, import the default export from the file and return that.
 				import(`${dirPath}/${file}`).then((module) => {
+					module.default.own.dirPath = dirPath
+					module.default.own.fileName = dirPath + "/" + file
 					resolve(Object.assign(defaultConfig, module.default));
 				});
 			} else if (YAML_TEST.test(file)) {
 				// If it matches the YAML test, import the default export from the file and return that.
 				let obj = yaml.load(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
-				);
-				resolve(Object.assign(defaultConfig, obj) as FlakeConfigObject);
+				) as FlakeConfigObject;
+				obj.own.dirPath = dirPath
+				obj.own.fileName = dirPath + "/" + file
+				resolve(Object.assign(defaultConfig, obj));
 			}
 		}
 
 		// We didn't find any files, so return the default config.
+		defaultConfig.own.dirPath = dirPath
 		resolve(defaultConfig);
 	});
 }

@@ -14,7 +14,7 @@ type VariableDeclarationObject = acorn.Node & {
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 const code = fs.readFileSync(
-	path.join(__dirname, "../test/test.test.js"),
+	path.join(__dirname, "../test/main.test.js"),
 	"utf8"
 );
 let accumulateComments = [];

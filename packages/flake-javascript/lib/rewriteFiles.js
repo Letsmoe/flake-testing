@@ -5,7 +5,7 @@ import { fileURLToPath } from "url";
 import escodegen from "escodegen";
 import * as walk from "acorn-walk";
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
-const code = fs.readFileSync(path.join(__dirname, "../test/test.test.js"), "utf8");
+const code = fs.readFileSync(path.join(__dirname, "../test/main.test.js"), "utf8");
 let accumulateComments = [];
 let comments = [];
 const ast = Parser.parse(code, {

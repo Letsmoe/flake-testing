@@ -8,7 +8,8 @@ const defaultConfig: FlakeConfigObject = {
 		aggregateTimeout: 1000,
 		ignored: []
 	},
-	dir: "./"
+	dir: "./",
+	own: {}
 }
 
 export { defaultConfig }

@@ -1,53 +1,95 @@
 import { ResultPipe } from "../class.ResultPipe";
 import { OutputObject } from "../types";
+import supportsColor from "supports-color";
 import * as input from "wait-console-input";
 import * as fs from "fs";
+import { FlakeConfigObject } from "../config/config.type";
 
 const Reset = "\x1b[0m"
-const Bright = "\x1b[1m"
-const Dim = "\x1b[2m"
-const Underscore = "\x1b[4m"
-const Blink = "\x1b[5m"
-const Reverse = "\x1b[7m"
-const Hidden = "\x1b[8m"
-const FgBlack = "\x1b[30m"
-const FgRed = "\x1b[31m"
-const FgGreen = "\x1b[32m"
-const FgYellow = "\x1b[33m"
-const FgBlue = "\x1b[34m"
-const FgMagenta = "\x1b[35m"
-const FgCyan = "\x1b[36m"
-const FgWhite = "\x1b[37m"
-const BgBlack = "\x1b[40m"
-const BgRed = "\x1b[41m"
-const BgGreen = "\x1b[42m"
-const BgYellow = "\x1b[43m"
-const BgBlue = "\x1b[44m"
-const BgMagenta = "\x1b[45m"
-const BgCyan = "\x1b[46m"
-const BgWhite = "\x1b[47m"
 
-class c {
-	public static yellow = (m: string) => FgYellow + m + Reset;
-	public static red = (m: string) => FgRed + m + Reset;
-	public static green = (m: string) => FgGreen + m + Reset;
-	public static blue = (m: string) => FgBlue + m + Reset;
-	public static magenta = (m: string) => FgMagenta + m + Reset;
-	public static cyan = (m: string) => FgCyan + m + Reset;
-	public static white = (m: string) => FgWhite + m + Reset;
-	public static black = (m: string) => FgBlack + m + Reset;
-	public static bold = (m: string) => Bright + m + Reset;
-	public static dim = (m: string) => Dim + m + Reset;
-	public static underscore = (m: string) => Underscore + m + Reset;
-	public static blink = (m: string) => Blink + m + Reset;
-	public static reverse = (m: string) => Reverse + m + Reset;
-	public static hidden = (m: string) => Hidden + m + Reset;
-	public static bgGreen = (m: string) => BgGreen + m + Reset;
-	public static bgRed = (m: string) => BgRed + m + Reset;
+interface ColorObject {
+	yellow: (message: string) => string;
+	red: (message: string) => string;
+	green: (message: string) => string;
+	blue: (message: string) => string;
+	lightblue: (message: string) => string;
+	black: (message: string) => string;
+	lightgreen: (message: string) => string;
+	underline: (message: string) => string;
+	bold: (message: string) => string;
+	bg: ColorObject;
+	rgb: ([r,g,b]: number[]) => (message: string, settings: {skipReset: boolean}) => string;
+	default: ([r,g,b]: number[]) => (message: string, settings: {skipReset: boolean}) => string;
 }
+
+const colorsTrueColor = {
+	yellow: [255, 209, 102],
+	green: [130, 158, 46],
+	red: [224, 0, 90],
+	blue: [33, 145, 251],
+	lightblue: [155, 206, 253],
+	black: [35, 32, 32],
+	lightgreen: [218, 232, 176],
+	underline: [4],
+	bold: [1],
+}
+
+const colors256 = {
+	yellow: "33",
+	green: "32",
+	red: "31",
+	blue: "34",
+	lightblue: "36",
+	black: "30",
+	lightgreen: "92",
+	underline: "4",
+	bold: "1",
+	bg: {
+		yellow: "43",
+		green: "42",
+		red: "41",
+		blue: "44",
+		lightblue: "46",
+		black: "40",
+		lightgreen: "102",
+	}
+}
+
+const color = (color: string) => (message: string, settings = {skipReset: false}) => `\x1b[${color}m${message}${settings.skipReset ? "" : Reset}`;
+
+const handler: ProxyHandler<ColorObject> = {}
+handler.get = (target: ColorObject, prop: string) => {
+	// Check if the console supports truecolor
+	if (supportsColor.stdout) {
+		// Check if the property is a color
+		if (prop === "bg") {
+			return new Proxy({
+				rgb: ([r,g,b]) => (message: string, settings = {skipReset: false}) => `\x1b[48;2;${r};${g};${b}m${message}${settings.skipReset ? "" : Reset}`
+			} as ColorObject, handler)
+		}
+
+		if (colorsTrueColor[prop]) {
+			if (colorsTrueColor[prop].length === 3) {
+				return target.rgb(colorsTrueColor[prop]);
+			} else {
+				return color(colorsTrueColor[prop][0]);
+			}
+		}
+	} else {
+		// Check if the property is a color
+		if (colors256[prop]) {
+			return colors256[prop];
+		}
+	}
+}
+
+const c = new Proxy({
+	rgb: ([r,g,b]) => (message: string, settings = {skipReset: false}) => `\x1b[38;2;${r};${g};${b}m${message}${settings.skipReset ? "" : Reset}`
+} as unknown as ColorObject, handler)
 
 class ResultPrinter {
 	private pipe: ResultPipe;
+	private result: OutputObject;
 	constructor(pipe: ResultPipe) {
 		this.pipe = pipe;
 		pipe.attach((eventName, filePath) => {
@@ -55,12 +97,34 @@ class ResultPrinter {
 		})
 	}
 
-	private formatResultInfo(r: OutputObject) {
-		let numAssertions = Object.keys(r.result.assertions).length;
-		let [groups, numGroups] = [r.result.groups, Object.keys(r.result.groups).length];
+	private formatResultInfo() {
+		let numAssertions = this.result.result.assertions.length;
+		let [groups, numGroups] = [this.result.result.groups, Object.keys(this.result.result.groups).length];
 
-		let arrAssertions = Object.values(r.result.assertions);
+		// Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
+		let groupMap = {};
+		for (const group of Object.keys(groups)) {
+			for (const assertion of groups[group]) {
+				groupMap[assertion] = group;
+			}
+		}
+		let groupResults: {[key:string]: {failed: number, total: number}} = {}
+
+		let arrAssertions = this.result.result.assertions;
 		let [failed, succeeded] = arrAssertions.reduce((acc, curr) => {
+			if (groupMap[curr.name]) {
+				if (!groupResults[groupMap[curr.name]]) {
+					groupResults[groupMap[curr.name]] = {
+						failed: 0,
+						total: 0
+					}
+				}
+				if (!curr.result) {
+					groupResults[groupMap[curr.name]].failed++;
+				}
+				groupResults[groupMap[curr.name]].total++;
+			}
+
 			if (curr.result === true) {
 				return [acc[0], acc[1] + 1]
 			} else {
@@ -68,25 +132,39 @@ class ResultPrinter {
 			}
 		}, [0, 0])
 
-		let info: Array<[string, number]> = [
+		let ratio = (succeeded / numAssertions * 100);
+
+		let info: Array<[string, number | string]> = [
 			[c.yellow("Groups"), numGroups],
 			[c.yellow("Assertions"), numAssertions],
-			[c.red("Failed"), failed],
-			[c.green("Succeeded"), succeeded],
-			[c.yellow("Snapshots"), r.snapshots.length],
-			[c.yellow("Time"), `${r.endTime - r.startTime}ms`]
+			[c.yellow("Failed"), failed],
+			[c.yellow("Succeeded"), succeeded],
+			[c.yellow("Snapshots"), this.result.snapshots.length],
+			[c.yellow("Time"), `${this.result.endTime - this.result.startTime}ms`],
+			[c.yellow("Ratio"), ratio > 50 ? c.bg.green(`${ratio.toFixed(1)}%`) : c.bg.red(`${ratio.toFixed(1)}%`)],
 		]
 
 		let maxKeyLength = info.reduce((acc, curr) => {
 			return Math.max(acc, curr[0].length)
 		}, 0)
 
-		return info.map(curr => {
+		let output = info.map(curr => {
 			let key = curr[0];
 			let value = curr[1];
 			let padding = maxKeyLength - key.length;
 			return `${key}${new Array(padding + 1).join(" ")}: ${value}`
-		}).join("\n")
+		}).join("\n") + "\n"
+
+		for (const name in groupResults) {
+			let result = groupResults[name];
+			if (result.failed === result.total) {
+				output += `\n${c.yellow(`${c.blue(name)}`)}: ${c.red(`Failed ${result.failed}/${result.total}`)}`
+			} else {
+				output += `\n${c.blue(name)}: Failed ${result.failed}/${result.total}`
+			}
+		}
+
+		return output;
 	}
 
 	private formatHeader() {
@@ -98,17 +176,19 @@ class ResultPrinter {
 		
 		if (channel) {
 			let result = channel.asJSON();
-
-			console.log(this.formatHeader());
-			console.log(this.formatAssertions(result, channel));
-			console.log(this.formatResultInfo(result));
-			console.log()
-			let char = input.readChar(`> Press ${c.bold("s")} to get a list of all captured snapshots.\n`);
-			if (char === "s") {
-				console.clear()
-				console.log(this.formatSnapshots(result))
-			}
+			this.result = result;
+			this.printMain();
 		}
+	}
+
+	private printMain() {
+		console.clear();
+		console.log(this.formatHeader());
+		console.log(this.formatAssertions());
+		console.log(this.formatResultInfo());
+		console.log()
+		
+		this.showOptionsList("main")
 	}
 
 	private formatSnapshots(r: OutputObject) {
@@ -122,88 +202,116 @@ class ResultPrinter {
 		for (const snapshot of snapshots) {
 			let relativeTime = snapshot.time - startTime;
 			console.log(`${c.yellow(`Snapshot (${i})`)}:`);
-			console.log(`${TAB}${c.yellow("Time Recorded")}: ${relativeTime}ms after start.`);
 			console.log(`${TAB}${c.yellow("Line")}: ${snapshot.event.line}`);
-			console.log(`${TAB}${c.yellow("Assignment Type")}: ${snapshot.event.type}`);
 			console.log(`${TAB}${c.yellow("Name")}: "${snapshot.event.name}"`);
 			console.log()
 
 			i++;
 		}
-		let snapshotNumber = input.readInteger("> Enter the number of a snapshot to inspect.\n");
-		if (snapshotNumber >= 0 && snapshotNumber < snapshots.length) {
-			let snapshot = snapshots[snapshotNumber];
-			let relativeTime = snapshot.time - startTime;
-			console.clear();
-			// Dump the entire scope
-			console.log(`${c.yellow("Scope")}:`);
-			for (const key in snapshot.scope) {
-				let value = snapshot.scope[key];
-				console.log(`${TAB}${c.yellow(key)}: ${JSON.stringify(value)}`);
-			}
+		let snapshotNumber: number;
 
-			console.log()
-			// Print information about the assignment that has taken place there.
-			console.log(`${c.yellow(`Snapshot (${snapshotNumber})`)}:`);
-			console.log(`${TAB}${c.yellow("Time Recorded")}: ${relativeTime}ms after start.`);
-			console.log(`${TAB}${c.yellow("Line")}: ${snapshot.event.line}`);
-			console.log(`${TAB}${c.yellow("Assignment Type")}: ${snapshot.event.type}`);
-			console.log(`${TAB}${c.yellow("Name")}: "${snapshot.event.name}"`);
-			console.log(`${TAB}${c.yellow("Value")}: ${JSON.stringify(snapshot.event.value)}`);
+		do {
+			snapshotNumber = input.readInteger("> Enter the number of a snapshot to inspect.\n")
+		} while (snapshotNumber > snapshots.length - 1 || snapshotNumber < 0)
 
-			// Print the contextual lines of the file.
-			let line = snapshot.event.line;
-			let output = "";
-			let lines = fs.readFileSync(r.inputFile).toString().split("\n");
-			let followingLines = lines.slice(line - 5, line + 4);
-			for (const [lineNumber, line] of Object.entries(followingLines)) {
-				let correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
-				if (correctedLine === snapshot.event.line - 1) {
-					output += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
-				} else {
-					output += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
-				}
-			}
-			console.log(output)
 
-			let char = input.readChar(`> Press ${c.bold("s")} to get a list of all captured snapshots.\n`);
-			if (char === "s") {
-				console.clear()
-				console.log(this.formatSnapshots(r))
+		let snapshot = snapshots[snapshotNumber];
+		let relativeTime = snapshot.time - startTime;
+		console.clear();
+		// Dump the entire scope
+		console.log(`${c.bg.green("Scope")}:`);
+		for (const key in snapshot.scope) {
+			let value = snapshot.scope[key];
+			console.log(`${TAB}${c.yellow(key)}: ${JSON.stringify(value)}`);
+		}
+
+		console.log()
+		// Print information about the assignment that has taken place there.
+		console.log(`${c.yellow(`Snapshot (${snapshotNumber})`)}:`);
+		console.log(`${TAB}${c.yellow("Time Recorded")}: ${relativeTime}ms after start.`);
+		console.log(`${TAB}${c.yellow("Line")}: ${snapshot.event.line}`);
+		console.log(`${TAB}${c.yellow("Assignment Type")}: ${snapshot.event.type}`);
+		console.log(`${TAB}${c.yellow("Name")}: "${snapshot.event.name}"`);
+		console.log(`${TAB}${c.yellow("Value")}: ${JSON.stringify(snapshot.event.value)}`);
+
+		// Print the contextual lines of the file.
+		let line = snapshot.event.line;
+		let output = "";
+		let lines = fs.readFileSync(r.inputFile).toString().split("\n");
+		let followingLines = lines.slice(line - 5, line + 4);
+		for (const [lineNumber, line] of Object.entries(followingLines)) {
+			let correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
+			if (correctedLine === snapshot.event.line - 1) {
+				output += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
+			} else {
+				output += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
 			}
+		}
+		console.log(output)
+
+		this.showOptionsList("");
+	}
+
+	showOptionsList(current: string) {
+		if (current !== "snapshots") console.log(`> Press ${c.bold("s")} to get a list of all captured snapshots.`)
+		if (current !== "main") console.log(`> Press ${c.bold("r")} to return to the main window.`);
+		console.log(`> Press ${c.bold("e")} to exit the debugger.`);
+
+		let char = input.readChar();
+		if (char === "s") {
+			console.clear()
+			console.log(this.formatSnapshots(this.result))
+		} else if (char === "r") {
+			this.printMain();
+		} else if (char === "e") {
+			process.exit(0);
 		}
 	}
 
-	formatAssertions(r: OutputObject, channel: any): any {
+	formatAssertions(): any {
 		let output = "";
 		const TAB = " ".repeat(6);
 		const TAB_SM = " ".repeat(3);
 		// Loop through all the assertions and check if they're in a group.
 		// If they are, print the group name and the assertion.
 		// If they aren't, print the assertion.
-		let file = r.inputFile;
-		let groups = r.result.groups;
-		let assertions = Object.values(r.result.assertions);
+		let file = this.result.inputFile;
+		let groups = this.result.result.groups;
+		// Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
+		let groupMap = {};
+		for (const group of Object.keys(groups)) {
+			for (const assertion of groups[group]) {
+				groupMap[assertion] = group;
+			}
+		}
+		// Store all assertions
+		let assertions = Object.values(this.result.result.assertions);
 
 		for (const assertion of assertions) {
+			let name = assertion.name;
 			// If the assertion passed we want to write a "PASS" sign with green background
 			// If the assertion failed we want to write a "FAIL" sign with red background
-			let color = assertion.result ? c.bgGreen : c.bgRed;
+			let color = assertion.result ? c.bg.green : c.bg.red;
 			let sign = assertion.result ? "PASS" : "FAIL";
-			output += color(sign) + " " + `${file}:${assertion.line}` + "\n";
-			output += "     " + assertion.description + "\n";
+			// Remove the path of the config from the filepath since we don't want to list literally the whole thing.
+			let replacedFile = file.replace(process.cwd(), "");
+			output += groupMap[name] ? `${c.blue(groupMap[name])}: ` : "";
+			output += color(sign) + " " + `${replacedFile}:${assertion.line}` + "\n";
+			output += TAB + assertion.description + "\n";
+			output += `${TAB}${c.blue("content")}: ${c.yellow(assertion.content)}\n\n`
 
 			// If the assertion failed, we want to print the line where it failed and the following 5 lines;
 			if (!assertion.result) {
-				output += "\n"
 				let lines = fs.readFileSync(file).toString().split("\n");
-				let followingLines = lines.slice(assertion.line - 5, assertion.line + 4);
+				let followingLines = lines.slice(assertion.line - 3, assertion.line + 4);
 				for (const [lineNumber, line] of Object.entries(followingLines)) {
-					let correctedLine = parseInt(lineNumber, 10) + assertion.line - 5;
+					let correctedLine = parseInt(lineNumber, 10) + assertion.line - 3;
+
+					let strLine = (correctedLine + 1).toString().padStart(2, " ");
 					if (correctedLine === assertion.line - 1) {
-						output += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
+						output += `${TAB_SM}${c.red(`>> ${strLine}|`)}${TAB_SM}${c.red(line)}\n`
 					} else {
-						output += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
+						output += `${TAB}${strLine}|${TAB_SM}${line}\n`;
 					}
 				}
 				output += "\n"
