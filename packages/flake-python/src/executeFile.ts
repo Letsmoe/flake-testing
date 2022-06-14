@@ -1,7 +1,6 @@
-import { OutputObject, ImportObject, AssertionObject, FileExecutor } from "@flake-testing/core"
+import { OutputObject, ImportObject, AssertionObject } from "@flake-testing/core"
 import { ResultPipe } from "@flake-testing/core"
 import { ResultPrinter } from "@flake-testing/core";
-import { RewriteJavaScriptFileContent } from "./rewriteFiles";
 
 const TEST_FILE = process.cwd() + "/test/output.test.js";
 const output: OutputObject = {
@@ -89,42 +88,37 @@ function receiveModuleImport(importStatement: ImportObject) {
 	output.imports.push(importStatement);
 }
 
-function getResults(file: string, options: {}, callback: Function) {
-	let start = Date.now();
-	import(file).then(module => {
-		// The test function is inside the modules default export
-		// Execute the modules default export function.
-		let count = 0;
-		module.default(({line, from, to, content, description, name, result}) => {
-			receiveAssertion({line, from, to, content, description, name, result});
-			count++
-			if (count === expectCount) {
-				actions["afterAll"]?.forEach(action => action());
-				output.status = output.result.assertions.every((x: AssertionObject) => x.result);
-				output.startTime = start;
-				output.endTime = Date.now();
-				callback(output);
-			}
-		}, receiveNamedGroups, receiveCount, receiveModuleImport, actionRegisterReceiver, receiveVariableAssignment)
+function getResults() {
+	return new Promise<OutputObject>((resolve, reject) => {
+		let start = Date.now();
+		import(TEST_FILE).then(module => {
+			// The test function is inside the modules default export
+			// Execute the modules default export function.
+			let count = 0;
+			module.default(({line, from, to, content, description, name, result}) => {
+				receiveAssertion({line, from, to, content, description, name, result});
+				count++
+				if (count === expectCount) {
+					actions["afterAll"]?.forEach(action => action());
+					output.status = output.result.assertions.every((x: AssertionObject) => x.result);
+					output.startTime = start;
+					output.endTime = Date.now();
+					resolve(output);
+				}
+			}, receiveNamedGroups, receiveCount, receiveModuleImport, actionRegisterReceiver, receiveVariableAssignment)
+		})
 	})
 }
 
-/**
- * We want to pass the rewrite function and the executor to an instance of the default FileExecutor class.
- * The result of the rewritten JS will be stored in a temporary file which will then be passed to the executor function.
- * This function returns a promise when it is executed asynchronously, the output must follow the schema for structured data and the result will then be written to disk.
- */
+getResults().then(out => {
+	let pipe = new ResultPipe();
+	pipe.ready = () => {
+		let printer = new ResultPrinter(pipe)
 
-const executor = new FileExecutor(RewriteJavaScriptFileContent, getResults);
-const pipe = new ResultPipe();
+		let id = pipe.open();
+		out.identifier = id;
+		pipe.write(id, out);
 
-pipe.ready = () => {
-	executor.collectFiles(/.*\.(?:test|spec)\.(?:tsx|jsx|ts|js)/, pipe.getConfig())
-	let printer = new ResultPrinter(pipe)
-
-	let id = pipe.open();
-	out.identifier = id;
-	pipe.write(id, out);
-
-	printer.print(id);
-}
+		printer.print(id);
+	}
+})

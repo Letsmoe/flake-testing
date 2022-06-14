@@ -28,6 +28,9 @@ var ResultPipe = /** @class */ (function () {
             _this.ready();
         });
     }
+    ResultPipe.prototype.getConfig = function () {
+        return this.config;
+    };
     ResultPipe.prototype.ready = function () { };
     ResultPipe.prototype.attach = function (callback) {
         this.listeners.set(callback, callback);

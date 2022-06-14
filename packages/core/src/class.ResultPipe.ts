@@ -59,6 +59,10 @@ class ResultPipe {
 			this.ready();
 		})
 	}
+	
+	public getConfig() {
+		return this.config;
+	}
 
 	public ready() {}
 

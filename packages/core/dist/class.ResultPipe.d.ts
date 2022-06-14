@@ -1,3 +1,4 @@
+import { FlakeConfigObject } from "./config/config.type.js";
 import * as fs from "fs";
 /**
  * Whenever we want to execute a test, we would normally take the test file and run it in some kind of enclosed space so we can make sure our results are not
@@ -29,6 +30,7 @@ declare class ResultPipe {
     private listeners;
     private channels;
     constructor();
+    getConfig(): FlakeConfigObject;
     ready(): void;
     attach(callback: ResultListener): void;
     detach(callback: ResultListener): void;

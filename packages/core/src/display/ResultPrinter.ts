@@ -3,7 +3,6 @@ import { OutputObject } from "../types";
 import supportsColor from "supports-color";
 import * as input from "wait-console-input";
 import * as fs from "fs";
-import { FlakeConfigObject } from "../config/config.type";
 
 const Reset = "\x1b[0m"
 
