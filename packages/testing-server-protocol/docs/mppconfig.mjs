@@ -1,5 +1,4 @@
 export default {
-	css: ["/style/main.css"],
 	outDir: "../out/",
 	rootDir: "./src/",
 	resultModifier: {
@@ -9,7 +8,7 @@ export default {
 	},
 	watch: true,
 	wrapper: function(head, body,metadata, md) {
-		return `<!DOCTYPE html><html><head>${head}${this.generateMetadata(metadata)}</head><body><a href="/">Back Home</a><div class="content">${body}</div></body></html>`
+		return `<!DOCTYPE html><html><head>${head}${this.generateMetadata(metadata)}</head><body><a href="/">Home</a><div class="content">${body}</div></body></html>`
 	},
 	linkValidation: true,
 	serve: true

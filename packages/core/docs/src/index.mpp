@@ -3,5 +3,8 @@
 Datatypes:
 
 - !`false`
+- !`true`
 
-some link: [link](./datatypes/false.mpp)
+[link](/datatypes/false.html)
+[link](../src/datatypes/false.html)
+[link](./datatypes/false.html)
