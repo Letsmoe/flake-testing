@@ -38,6 +38,7 @@ function readConfig(dirPath) {
             if (JSON_TEST.test(file)) {
                 // If it does, return the file contents as JSON.
                 var obj = JSON.parse(fs.readFileSync("".concat(dirPath, "/").concat(file), "utf8"));
+                obj.own = {};
                 obj.own.dirPath = dirPath;
                 obj.own.fileName = dirPath + "/" + file;
                 resolve(Object.assign(defaultConfig, obj));

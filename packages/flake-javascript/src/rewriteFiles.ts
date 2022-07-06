@@ -1,35 +1,21 @@
 import acorn, { Parser } from "acorn";
-import * as path from "path";
-import * as fs from "fs";
-import { fileURLToPath } from "url";
 import escodegen from "escodegen";
 import * as walk from "acorn-walk";
 import { ImportObject, VariableDeclarationObject } from "./types";
-
-
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
-
-const code = fs.readFileSync(
-	path.join(__dirname, "../test/main.test.js"),
-	"utf8"
-);
-
 // A function that removes the leading and trailing asterisks, slashes and whitespace from a string.
 function trimAsterisk(str: string) {
 	return str.replace(/^[*\/\s]+|[*\/\s]+$/g, "");
 }
 
-// An array to store imports so they don't end up in the exported function.
-const imports: ImportObject[] = [];
-
-// An object that stores information about the names of groups that can be defined like this: "assert__main: awd" this corresponds to the group "main"
-const namedGroups = {};
-// A counter so we can give each test a unique number;
-var counter = 0;
-var everyDescription = [];
-
 export function RewriteJavaScriptFileContent(content: string) {
+	// An array to store imports so they don't end up in the exported function.
+	const imports: ImportObject[] = [];
+
+	// An object that stores information about the names of groups that can be defined like this: "assert__main: awd" this corresponds to the group "main"
+	const namedGroups = {};
+	// A counter so we can give each test a unique number;
+	var counter = 0;
+	var everyDescription = [];
 	// Collect all comments into an array
 	let accumulateComments = [];
 	let comments = [];
@@ -367,5 +353,3 @@ export function RewriteJavaScriptFileContent(content: string) {
 
 	return output;
 }
-
-console.log(RewriteJavaScriptFileContent(code));

@@ -30,9 +30,10 @@ interface FlakeConfigObject {
         dirPath?: string;
         fileName?: string;
     };
+    /**
+     * Whether to compare to truthiness or strict "true"
+     */
+    strictCompare: boolean;
     [k: string]: unknown;
 }
-declare type SharedConfigObject = FlakeConfigObject & {
-    onDidValidate: (x: FlakeConfigObject) => void;
-};
-export { FlakeConfigObject, SharedConfigObject };
+export { FlakeConfigObject };

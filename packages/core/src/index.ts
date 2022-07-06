@@ -1,4 +1,2 @@
-export { ResultPipe } from "./class.ResultPipe.js";
 export { OutputObject, ImportObject, ResultObject, SnapshotObject, AssertionObject, SpecifierObject } from "./types/index";
-export { ResultPrinter } from "./display/ResultPrinter.js";
-export { FileExecutor } from "./class.FileExecutor.js";
+export { Flake } from "./flake.js";

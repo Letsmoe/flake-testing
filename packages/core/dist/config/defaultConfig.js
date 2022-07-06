@@ -1,5 +1,5 @@
 var defaultConfig = {
-    exclude: [],
+    exclude: [".*node_modules.*"],
     watch: false,
     watchOptions: {
         poll: 500,
@@ -7,7 +7,8 @@ var defaultConfig = {
         ignored: []
     },
     dir: "./",
-    own: {}
+    own: {},
+    strictCompare: false
 };
 export { defaultConfig };
 //# sourceMappingURL=defaultConfig.js.map

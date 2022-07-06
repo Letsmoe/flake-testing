@@ -1,7 +1,7 @@
 import { FlakeConfigObject } from "./config.type"
 
 const defaultConfig: FlakeConfigObject = {
-	exclude: [],
+	exclude: [".*node_modules.*"],
 	watch: false,
 	watchOptions: {
 		poll: 500,
@@ -9,7 +9,8 @@ const defaultConfig: FlakeConfigObject = {
 		ignored: []
 	},
 	dir: "./",
-	own: {}
+	own: {},
+	strictCompare: false
 }
 
 export { defaultConfig }

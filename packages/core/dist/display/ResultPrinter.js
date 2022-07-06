@@ -1,93 +1,19 @@
-import supportsColor from "supports-color";
-import * as input from "wait-console-input";
 import * as fs from "fs";
-var Reset = "\x1b[0m";
-var colorsTrueColor = {
-    yellow: [255, 209, 102],
-    green: [130, 158, 46],
-    red: [224, 0, 90],
-    blue: [33, 145, 251],
-    lightblue: [155, 206, 253],
-    black: [35, 32, 32],
-    lightgreen: [218, 232, 176],
-    underline: [4],
-    bold: [1],
-};
-var colors256 = {
-    yellow: "33",
-    green: "32",
-    red: "31",
-    blue: "34",
-    lightblue: "36",
-    black: "30",
-    lightgreen: "92",
-    underline: "4",
-    bold: "1",
-    bg: {
-        yellow: "43",
-        green: "42",
-        red: "41",
-        blue: "44",
-        lightblue: "46",
-        black: "40",
-        lightgreen: "102",
-    }
-};
-var color = function (color) { return function (message, settings) {
-    if (settings === void 0) { settings = { skipReset: false }; }
-    return "\u001B[".concat(color, "m").concat(message).concat(settings.skipReset ? "" : Reset);
-}; };
-var handler = {};
-handler.get = function (target, prop) {
-    // Check if the console supports truecolor
-    if (supportsColor.stdout) {
-        // Check if the property is a color
-        if (prop === "bg") {
-            return new Proxy({
-                rgb: function (_a) {
-                    var r = _a[0], g = _a[1], b = _a[2];
-                    return function (message, settings) {
-                        if (settings === void 0) { settings = { skipReset: false }; }
-                        return "\u001B[48;2;".concat(r, ";").concat(g, ";").concat(b, "m").concat(message).concat(settings.skipReset ? "" : Reset);
-                    };
-                }
-            }, handler);
-        }
-        if (colorsTrueColor[prop]) {
-            if (colorsTrueColor[prop].length === 3) {
-                return target.rgb(colorsTrueColor[prop]);
-            }
-            else {
-                return color(colorsTrueColor[prop][0]);
-            }
-        }
-    }
-    else {
-        // Check if the property is a color
-        if (colors256[prop]) {
-            return colors256[prop];
-        }
-    }
-};
-var c = new Proxy({
-    rgb: function (_a) {
-        var r = _a[0], g = _a[1], b = _a[2];
-        return function (message, settings) {
-            if (settings === void 0) { settings = { skipReset: false }; }
-            return "\u001B[38;2;".concat(r, ";").concat(g, ";").concat(b, "m").concat(message).concat(settings.skipReset ? "" : Reset);
-        };
-    }
-}, handler);
+import { c } from "./color.js";
+import boxen from "boxen";
+import * as readline from 'node:readline';
+import { stdin as input, stdout as output } from 'node:process';
+import { generateRandomString } from "../utils/randomString.js";
 var ResultPrinter = /** @class */ (function () {
-    function ResultPrinter(pipe) {
-        this.pipe = pipe;
-        pipe.attach(function (eventName, filePath) {
-            console.log("".concat(eventName, ": ").concat(filePath));
-        });
+    function ResultPrinter() {
+        this.headers = { "0": "Running flake version 0.0.1;" };
+        // A number to store the current index in, this allows navigating results.
+        this.currentIndex = 0;
+        this.readListeners = [];
     }
-    ResultPrinter.prototype.formatResultInfo = function () {
-        var numAssertions = this.result.result.assertions.length;
-        var _a = [this.result.result.groups, Object.keys(this.result.result.groups).length], groups = _a[0], numGroups = _a[1];
+    ResultPrinter.prototype.formatResultInfo = function (obj) {
+        var numAssertions = obj.result.assertions.length;
+        var _a = [obj.result.groups, Object.keys(obj.result.groups).length], groups = _a[0], numGroups = _a[1];
         // Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
         var groupMap = {};
         for (var _i = 0, _b = Object.keys(groups); _i < _b.length; _i++) {
@@ -98,7 +24,7 @@ var ResultPrinter = /** @class */ (function () {
             }
         }
         var groupResults = {};
-        var arrAssertions = this.result.result.assertions;
+        var arrAssertions = obj.result.assertions;
         var _e = arrAssertions.reduce(function (acc, curr) {
             if (groupMap[curr.name]) {
                 if (!groupResults[groupMap[curr.name]]) {
@@ -125,8 +51,8 @@ var ResultPrinter = /** @class */ (function () {
             [c.yellow("Assertions"), numAssertions],
             [c.yellow("Failed"), failed],
             [c.yellow("Succeeded"), succeeded],
-            [c.yellow("Snapshots"), this.result.snapshots.length],
-            [c.yellow("Time"), "".concat(this.result.endTime - this.result.startTime, "ms")],
+            [c.yellow("Snapshots"), obj.snapshots.length],
+            [c.yellow("Time"), "".concat(obj.endTime - obj.startTime, "ms")],
             [c.yellow("Ratio"), ratio > 50 ? c.bg.green("".concat(ratio.toFixed(1), "%")) : c.bg.red("".concat(ratio.toFixed(1), "%"))],
         ];
         var maxKeyLength = info.reduce(function (acc, curr) {
@@ -137,7 +63,7 @@ var ResultPrinter = /** @class */ (function () {
             var value = curr[1];
             var padding = maxKeyLength - key.length;
             return "".concat(key).concat(new Array(padding + 1).join(" "), ": ").concat(value);
-        }).join("\n") + "\n";
+        }).join("\n");
         for (var name_1 in groupResults) {
             var result = groupResults[name_1];
             if (result.failed === result.total) {
@@ -150,107 +76,148 @@ var ResultPrinter = /** @class */ (function () {
         return output;
     };
     ResultPrinter.prototype.formatHeader = function () {
-        return "Running flake version 0.0.1;";
+        return Object.values(this.headers).map(function (x) {
+            return "  " + x.trim();
+        }).join("\n");
     };
-    ResultPrinter.prototype.print = function (identifier) {
-        var channel = this.pipe.getChannel(identifier);
-        if (channel) {
-            var result = channel.asJSON();
-            this.result = result;
-            this.printMain();
-        }
+    ResultPrinter.prototype.addHeader = function (message) {
+        var id = generateRandomString(16);
+        this.headers[id] = message;
+    };
+    ResultPrinter.prototype.reserveHeader = function (message) {
+        var _this = this;
+        var id = generateRandomString(16);
+        this.headers[id] = message;
+        return function (msg) {
+            _this.headers[id] = msg;
+            _this.printMain();
+        };
+    };
+    ResultPrinter.prototype.print = function (result) {
+        this.result = result;
+        this.printMain();
+    };
+    ResultPrinter.prototype.closeAllListeners = function () {
+        this.readListeners.forEach(function (listener) {
+            listener.close();
+        });
     };
     ResultPrinter.prototype.printMain = function () {
+        this.closeAllListeners();
+        var currentResult = this.result[this.currentIndex];
+        this.margin = 0.5;
         console.clear();
         console.log(this.formatHeader());
-        console.log(this.formatAssertions());
-        console.log(this.formatResultInfo());
-        console.log();
+        var text = "";
+        text += this.formatAssertions(currentResult) + "\n";
+        text += this.formatResultInfo(currentResult);
+        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin, width: 100 }));
         this.showOptionsList("main");
     };
-    ResultPrinter.prototype.formatSnapshots = function (r) {
+    ResultPrinter.prototype.formatSnapshots = function (obj) {
+        var _this = this;
+        console.clear();
         var TAB = " ".repeat(6);
         var TAB_SM = " ".repeat(3);
-        var snapshots = r.snapshots;
-        var startTime = r.startTime;
-        var endTime = r.endTime;
+        var snapshots = obj.snapshots;
+        var startTime = obj.startTime;
+        var endTime = obj.endTime;
         // Loop through all the snapshots and list when they were captured as well as on which line they were captured.
         var i = 0;
+        var text = "";
         for (var _i = 0, snapshots_1 = snapshots; _i < snapshots_1.length; _i++) {
-            var snapshot_1 = snapshots_1[_i];
-            var relativeTime_1 = snapshot_1.time - startTime;
-            console.log("".concat(c.yellow("Snapshot (".concat(i, ")")), ":"));
-            console.log("".concat(TAB).concat(c.yellow("Line"), ": ").concat(snapshot_1.event.line));
-            console.log("".concat(TAB).concat(c.yellow("Name"), ": \"").concat(snapshot_1.event.name, "\""));
-            console.log();
+            var snapshot = snapshots_1[_i];
+            text += "".concat(c.yellow("Snapshot (".concat(i, ")")), ":\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Line"), ": ").concat(snapshot.event.line, "\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Name"), ": \"").concat(snapshot.event.name, "\"\n");
             i++;
         }
-        var snapshotNumber;
-        do {
-            snapshotNumber = input.readInteger("> Enter the number of a snapshot to inspect.\n");
-        } while (snapshotNumber > snapshots.length - 1 || snapshotNumber < 0);
-        var snapshot = snapshots[snapshotNumber];
-        var relativeTime = snapshot.time - startTime;
-        console.clear();
-        // Dump the entire scope
-        console.log("".concat(c.bg.green("Scope"), ":"));
-        for (var key in snapshot.scope) {
-            var value = snapshot.scope[key];
-            console.log("".concat(TAB).concat(c.yellow(key), ": ").concat(JSON.stringify(value)));
-        }
-        console.log();
-        // Print information about the assignment that has taken place there.
-        console.log("".concat(c.yellow("Snapshot (".concat(snapshotNumber, ")")), ":"));
-        console.log("".concat(TAB).concat(c.yellow("Time Recorded"), ": ").concat(relativeTime, "ms after start."));
-        console.log("".concat(TAB).concat(c.yellow("Line"), ": ").concat(snapshot.event.line));
-        console.log("".concat(TAB).concat(c.yellow("Assignment Type"), ": ").concat(snapshot.event.type));
-        console.log("".concat(TAB).concat(c.yellow("Name"), ": \"").concat(snapshot.event.name, "\""));
-        console.log("".concat(TAB).concat(c.yellow("Value"), ": ").concat(JSON.stringify(snapshot.event.value)));
-        // Print the contextual lines of the file.
-        var line = snapshot.event.line;
-        var output = "";
-        var lines = fs.readFileSync(r.inputFile).toString().split("\n");
-        var followingLines = lines.slice(line - 5, line + 4);
-        for (var _a = 0, _b = Object.entries(followingLines); _a < _b.length; _a++) {
-            var _c = _b[_a], lineNumber = _c[0], line_1 = _c[1];
-            var correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
-            if (correctedLine === snapshot.event.line - 1) {
-                output += "".concat(TAB_SM).concat(c.red(">> ".concat(correctedLine + 1, "|"))).concat(TAB_SM).concat(line_1, "\n");
+        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin, width: 100 }));
+        var _a = readString("  What snapshot do you want to inspect:", function (str) {
+            return parseInt(str, 10) >= 0 && parseInt(str, 10) < snapshots.length;
+        }), rl = _a[0], answer = _a[1];
+        this.readListeners.push(rl);
+        answer.then(function (answer) {
+            console.clear();
+            var snapshotNumber = parseInt(answer);
+            var snapshot = snapshots[snapshotNumber];
+            var relativeTime = snapshot.time - startTime;
+            var text = "";
+            // Dump the entire scope
+            text += "".concat(c.bg.green("Scope"), ":\n");
+            for (var key in snapshot.scope) {
+                var value = snapshot.scope[key];
+                text += "".concat(TAB_SM).concat(c.yellow(key), ": ").concat(JSON.stringify(value), "\n");
             }
-            else {
-                output += "".concat(TAB).concat(correctedLine + 1, "|").concat(TAB_SM).concat(line_1, "\n");
+            // Print information about the assignment that has taken place there.
+            text += "".concat(c.yellow("Snapshot (".concat(snapshotNumber, ")")), ":\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Time Recorded"), ": ").concat(relativeTime, "ms after start.\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Line"), ": ").concat(snapshot.event.line, "\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Assignment Type"), ": ").concat(snapshot.event.type, "\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Name"), ": \"").concat(snapshot.event.name, "\"\n");
+            text += "".concat(TAB_SM).concat(c.yellow("Value"), ": ").concat(JSON.stringify(snapshot.event.value), "\n");
+            // Print the contextual lines of the file.
+            var line = snapshot.event.line;
+            var lines = fs.readFileSync(obj.inputFile).toString().split("\n");
+            var followingLines = lines.slice(line - 5, line + 4);
+            for (var _i = 0, _a = Object.entries(followingLines); _i < _a.length; _i++) {
+                var _b = _a[_i], lineNumber = _b[0], line_1 = _b[1];
+                var correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
+                if (correctedLine === snapshot.event.line - 1) {
+                    text += "".concat(TAB_SM).concat(c.red(">> ".concat(correctedLine + 1, "|"))).concat(TAB_SM).concat(line_1, "\n");
+                }
+                else {
+                    text += "".concat(TAB).concat(correctedLine + 1, "|").concat(TAB_SM).concat(line_1, "\n");
+                }
             }
-        }
-        console.log(output);
-        this.showOptionsList("");
+            console.log(boxen(text, { title: "Page ".concat(_this.currentIndex + 1, " of ").concat(_this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: _this.margin, width: 100 }));
+            _this.showOptionsList("");
+        });
     };
     ResultPrinter.prototype.showOptionsList = function (current) {
+        var _this = this;
+        var indent = " ".repeat(Math.round(this.margin * 4));
         if (current !== "snapshots")
-            console.log("> Press ".concat(c.bold("s"), " to get a list of all captured snapshots."));
+            console.log(indent + "> Press [".concat(c.bold("S"), "] to get a list of all captured snapshots."));
         if (current !== "main")
-            console.log("> Press ".concat(c.bold("r"), " to return to the main window."));
-        console.log("> Press ".concat(c.bold("e"), " to exit the debugger."));
-        var char = input.readChar();
-        if (char === "s") {
-            console.clear();
-            console.log(this.formatSnapshots(this.result));
-        }
-        else if (char === "r") {
-            this.printMain();
-        }
-        else if (char === "e") {
-            process.exit(0);
-        }
+            console.log(indent + "> Press [".concat(c.bold("R"), "] to return to the main window."));
+        if (current === "main" && this.result.length > 1)
+            console.log(indent + "> Press [".concat(c.bold("LEFT"), "] to navigate to the previous run or [").concat(c.bold("RIGHT"), "] for the next run."));
+        console.log(indent + "> Press [".concat(c.bold("E"), "] to exit the debugger."));
+        var _a = readChar(indent + "What would you like to do?\n" + indent, function (char, key) {
+            return ["s", "r", "e"].indexOf(char) > -1 || ["right", "left"].indexOf(key.name) > -1 && _this.result.length > 1;
+        }), rl = _a[0], answer = _a[1];
+        this.readListeners.push(rl);
+        answer.then(function (_a) {
+            var char = _a.char, event = _a.event;
+            if (char === "s") {
+                _this.formatSnapshots(_this.result[_this.currentIndex]);
+            }
+            else if (char === "r") {
+                _this.printMain();
+            }
+            else if (char === "e") {
+                process.exit(0);
+            }
+            else if (event.name === "left" && _this.result.length > 1) {
+                _this.currentIndex = (_this.currentIndex - 1) < 0 ? _this.result.length - 1 : _this.currentIndex - 1;
+                _this.printMain();
+            }
+            else if (event.name === "right" && _this.result.length > 1) {
+                _this.currentIndex = (_this.currentIndex + 1) >= _this.result.length ? 0 : _this.currentIndex + 1;
+                _this.printMain();
+            }
+        });
     };
-    ResultPrinter.prototype.formatAssertions = function () {
+    ResultPrinter.prototype.formatAssertions = function (obj) {
         var output = "";
         var TAB = " ".repeat(6);
         var TAB_SM = " ".repeat(3);
         // Loop through all the assertions and check if they're in a group.
         // If they are, print the group name and the assertion.
         // If they aren't, print the assertion.
-        var file = this.result.inputFile;
-        var groups = this.result.result.groups;
+        var file = obj.inputFile;
+        var groups = obj.result.groups;
         // Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
         var groupMap = {};
         for (var _i = 0, _a = Object.keys(groups); _i < _a.length; _i++) {
@@ -261,19 +228,20 @@ var ResultPrinter = /** @class */ (function () {
             }
         }
         // Store all assertions
-        var assertions = Object.values(this.result.result.assertions);
+        var assertions = Object.values(obj.result.assertions);
         for (var _d = 0, assertions_1 = assertions; _d < assertions_1.length; _d++) {
             var assertion = assertions_1[_d];
             var name_2 = assertion.name;
             // If the assertion passed we want to write a "PASS" sign with green background
             // If the assertion failed we want to write a "FAIL" sign with red background
-            var color_1 = assertion.result ? c.bg.green : c.bg.red;
+            var color = assertion.result ? c.bg.green : c.bg.red;
             var sign = assertion.result ? "PASS" : "FAIL";
             // Remove the path of the config from the filepath since we don't want to list literally the whole thing.
             var replacedFile = file.replace(process.cwd(), "");
             output += groupMap[name_2] ? "".concat(c.blue(groupMap[name_2]), ": ") : "";
-            output += color_1(sign) + " " + "".concat(replacedFile, ":").concat(assertion.line) + "\n";
-            output += TAB + assertion.description + "\n";
+            output += color(sign) + " " + "".concat(replacedFile, ":").concat(assertion.line) + "\n";
+            if (assertion.description)
+                output += TAB + assertion.description + "\n";
             output += "".concat(TAB).concat(c.blue("content"), ": ").concat(c.yellow(assertion.content), "\n\n");
             // If the assertion failed, we want to print the line where it failed and the following 5 lines;
             if (!assertion.result) {
@@ -297,5 +265,45 @@ var ResultPrinter = /** @class */ (function () {
     };
     return ResultPrinter;
 }());
+function readChar(message, verify) {
+    if (verify === void 0) { verify = function (char, key) { return true; }; }
+    var ac = new AbortController();
+    var signal = ac.signal;
+    var rl = readline.createInterface({ input: input, output: output });
+    return [rl, new Promise(function (resolve, reject) {
+            var listener = function (char, k) {
+                if (verify(char, k)) {
+                    var closeListener = function () {
+                        resolve({ char: char, event: k });
+                    };
+                    rl.on("close", closeListener);
+                    process.stdin.removeListener("keypress", listener);
+                    ac.abort();
+                    rl.close();
+                }
+                else {
+                    readline.clearLine(process.stdout, 0);
+                    readline.moveCursor(process.stdout, -1, 0);
+                }
+            };
+            process.stdin.on("keypress", listener);
+            rl.question(message, { signal: signal }, function () { });
+        })];
+}
+function readString(message, verify) {
+    if (verify === void 0) { verify = function (str) { return true; }; }
+    var rl = readline.createInterface({ input: input, output: output });
+    return [rl, new Promise(function (resolve, reject) {
+            rl.question(message, function (answer) {
+                rl.close();
+                if (verify(answer)) {
+                    resolve(answer);
+                }
+                else {
+                    readString(message, verify);
+                }
+            });
+        })];
+}
 export { ResultPrinter };
 //# sourceMappingURL=ResultPrinter.js.map

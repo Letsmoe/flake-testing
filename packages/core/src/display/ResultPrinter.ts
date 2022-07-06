@@ -1,104 +1,23 @@
-import { ResultPipe } from "../class.ResultPipe";
 import { OutputObject } from "../types";
-import supportsColor from "supports-color";
-import * as input from "wait-console-input";
 import * as fs from "fs";
+import {c} from "./color.js";
+import boxen from "boxen";
+import * as readline from 'node:readline';
+import { stdin as input, stdout as output } from 'node:process';
+import { generateRandomString } from "../utils/randomString.js";
 
-const Reset = "\x1b[0m"
-
-interface ColorObject {
-	yellow: (message: string) => string;
-	red: (message: string) => string;
-	green: (message: string) => string;
-	blue: (message: string) => string;
-	lightblue: (message: string) => string;
-	black: (message: string) => string;
-	lightgreen: (message: string) => string;
-	underline: (message: string) => string;
-	bold: (message: string) => string;
-	bg: ColorObject;
-	rgb: ([r,g,b]: number[]) => (message: string, settings: {skipReset: boolean}) => string;
-	default: ([r,g,b]: number[]) => (message: string, settings: {skipReset: boolean}) => string;
-}
-
-const colorsTrueColor = {
-	yellow: [255, 209, 102],
-	green: [130, 158, 46],
-	red: [224, 0, 90],
-	blue: [33, 145, 251],
-	lightblue: [155, 206, 253],
-	black: [35, 32, 32],
-	lightgreen: [218, 232, 176],
-	underline: [4],
-	bold: [1],
-}
-
-const colors256 = {
-	yellow: "33",
-	green: "32",
-	red: "31",
-	blue: "34",
-	lightblue: "36",
-	black: "30",
-	lightgreen: "92",
-	underline: "4",
-	bold: "1",
-	bg: {
-		yellow: "43",
-		green: "42",
-		red: "41",
-		blue: "44",
-		lightblue: "46",
-		black: "40",
-		lightgreen: "102",
-	}
-}
-
-const color = (color: string) => (message: string, settings = {skipReset: false}) => `\x1b[${color}m${message}${settings.skipReset ? "" : Reset}`;
-
-const handler: ProxyHandler<ColorObject> = {}
-handler.get = (target: ColorObject, prop: string) => {
-	// Check if the console supports truecolor
-	if (supportsColor.stdout) {
-		// Check if the property is a color
-		if (prop === "bg") {
-			return new Proxy({
-				rgb: ([r,g,b]) => (message: string, settings = {skipReset: false}) => `\x1b[48;2;${r};${g};${b}m${message}${settings.skipReset ? "" : Reset}`
-			} as ColorObject, handler)
-		}
-
-		if (colorsTrueColor[prop]) {
-			if (colorsTrueColor[prop].length === 3) {
-				return target.rgb(colorsTrueColor[prop]);
-			} else {
-				return color(colorsTrueColor[prop][0]);
-			}
-		}
-	} else {
-		// Check if the property is a color
-		if (colors256[prop]) {
-			return colors256[prop];
-		}
-	}
-}
-
-const c = new Proxy({
-	rgb: ([r,g,b]) => (message: string, settings = {skipReset: false}) => `\x1b[38;2;${r};${g};${b}m${message}${settings.skipReset ? "" : Reset}`
-} as unknown as ColorObject, handler)
 
 class ResultPrinter {
-	private pipe: ResultPipe;
-	private result: OutputObject;
-	constructor(pipe: ResultPipe) {
-		this.pipe = pipe;
-		pipe.attach((eventName, filePath) => {
-			console.log(`${eventName}: ${filePath}`);
-		})
-	}
+	private headers: {[key: string]: string} = {"0": "Running flake version 0.0.1;"}
+	private result: OutputObject[];
+	private margin: number;
+	// A number to store the current index in, this allows navigating results.
+	private currentIndex: number = 0;
+	constructor() {}
 
-	private formatResultInfo() {
-		let numAssertions = this.result.result.assertions.length;
-		let [groups, numGroups] = [this.result.result.groups, Object.keys(this.result.result.groups).length];
+	private formatResultInfo(obj: OutputObject) {
+		let numAssertions = obj.result.assertions.length;
+		let [groups, numGroups] = [obj.result.groups, Object.keys(obj.result.groups).length];
 
 		// Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
 		let groupMap = {};
@@ -109,7 +28,7 @@ class ResultPrinter {
 		}
 		let groupResults: {[key:string]: {failed: number, total: number}} = {}
 
-		let arrAssertions = this.result.result.assertions;
+		let arrAssertions = obj.result.assertions;
 		let [failed, succeeded] = arrAssertions.reduce((acc, curr) => {
 			if (groupMap[curr.name]) {
 				if (!groupResults[groupMap[curr.name]]) {
@@ -138,8 +57,8 @@ class ResultPrinter {
 			[c.yellow("Assertions"), numAssertions],
 			[c.yellow("Failed"), failed],
 			[c.yellow("Succeeded"), succeeded],
-			[c.yellow("Snapshots"), this.result.snapshots.length],
-			[c.yellow("Time"), `${this.result.endTime - this.result.startTime}ms`],
+			[c.yellow("Snapshots"), obj.snapshots.length],
+			[c.yellow("Time"), `${obj.endTime - obj.startTime}ms`],
 			[c.yellow("Ratio"), ratio > 50 ? c.bg.green(`${ratio.toFixed(1)}%`) : c.bg.red(`${ratio.toFixed(1)}%`)],
 		]
 
@@ -152,7 +71,7 @@ class ResultPrinter {
 			let value = curr[1];
 			let padding = maxKeyLength - key.length;
 			return `${key}${new Array(padding + 1).join(" ")}: ${value}`
-		}).join("\n") + "\n"
+		}).join("\n")
 
 		for (const name in groupResults) {
 			let result = groupResults[name];
@@ -167,115 +86,150 @@ class ResultPrinter {
 	}
 
 	private formatHeader() {
-		return "Running flake version 0.0.1;"
+		return Object.values(this.headers).map(x => {
+			return "  " + x.trim()
+		}).join("\n")
 	}
 
-	public print(identifier: string) {
-		let channel = this.pipe.getChannel(identifier);
-		
-		if (channel) {
-			let result = channel.asJSON();
-			this.result = result;
-			this.printMain();
+	public addHeader(message: string): void {
+		let id = generateRandomString(16);
+		this.headers[id] = message;
+	}
+
+	public reserveHeader(message: string): (msg: string) => void {
+		let id = generateRandomString(16);
+		this.headers[id] = message;
+		return (msg: string) => {
+			this.headers[id] = msg;
+			this.printMain()
 		}
+	}
+
+	public print(result: OutputObject[]) {
+		this.result = result;
+		this.printMain();
+	}
+
+	private readListeners: readline.Interface[] = [];
+	private closeAllListeners() {
+		this.readListeners.forEach(listener => {
+			listener.close();
+		})
 	}
 
 	private printMain() {
+		this.closeAllListeners();
+		let currentResult = this.result[this.currentIndex];
+		this.margin = 0.5;
 		console.clear();
 		console.log(this.formatHeader());
-		console.log(this.formatAssertions());
-		console.log(this.formatResultInfo());
-		console.log()
-		
+		let text = "";
+		text += this.formatAssertions(currentResult) + "\n";
+		text += this.formatResultInfo(currentResult);
+		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
 		this.showOptionsList("main")
 	}
 
-	private formatSnapshots(r: OutputObject) {
+	private formatSnapshots(obj: OutputObject) {
+		console.clear()
 		const TAB = " ".repeat(6);
 		const TAB_SM = " ".repeat(3);
-		let snapshots = r.snapshots;
-		let startTime = r.startTime;
-		let endTime = r.endTime;
+		let snapshots = obj.snapshots;
+		let startTime = obj.startTime;
+		let endTime = obj.endTime;
 		// Loop through all the snapshots and list when they were captured as well as on which line they were captured.
 		let i = 0;
+		let text = "";
 		for (const snapshot of snapshots) {
-			let relativeTime = snapshot.time - startTime;
-			console.log(`${c.yellow(`Snapshot (${i})`)}:`);
-			console.log(`${TAB}${c.yellow("Line")}: ${snapshot.event.line}`);
-			console.log(`${TAB}${c.yellow("Name")}: "${snapshot.event.name}"`);
-			console.log()
-
+			text += `${c.yellow(`Snapshot (${i})`)}:\n`
+			text += `${TAB_SM}${c.yellow("Line")}: ${snapshot.event.line}\n`
+			text += `${TAB_SM}${c.yellow("Name")}: "${snapshot.event.name}"\n`
 			i++;
 		}
-		let snapshotNumber: number;
+		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
 
-		do {
-			snapshotNumber = input.readInteger("> Enter the number of a snapshot to inspect.\n")
-		} while (snapshotNumber > snapshots.length - 1 || snapshotNumber < 0)
-
-
-		let snapshot = snapshots[snapshotNumber];
-		let relativeTime = snapshot.time - startTime;
-		console.clear();
-		// Dump the entire scope
-		console.log(`${c.bg.green("Scope")}:`);
-		for (const key in snapshot.scope) {
-			let value = snapshot.scope[key];
-			console.log(`${TAB}${c.yellow(key)}: ${JSON.stringify(value)}`);
-		}
-
-		console.log()
-		// Print information about the assignment that has taken place there.
-		console.log(`${c.yellow(`Snapshot (${snapshotNumber})`)}:`);
-		console.log(`${TAB}${c.yellow("Time Recorded")}: ${relativeTime}ms after start.`);
-		console.log(`${TAB}${c.yellow("Line")}: ${snapshot.event.line}`);
-		console.log(`${TAB}${c.yellow("Assignment Type")}: ${snapshot.event.type}`);
-		console.log(`${TAB}${c.yellow("Name")}: "${snapshot.event.name}"`);
-		console.log(`${TAB}${c.yellow("Value")}: ${JSON.stringify(snapshot.event.value)}`);
-
-		// Print the contextual lines of the file.
-		let line = snapshot.event.line;
-		let output = "";
-		let lines = fs.readFileSync(r.inputFile).toString().split("\n");
-		let followingLines = lines.slice(line - 5, line + 4);
-		for (const [lineNumber, line] of Object.entries(followingLines)) {
-			let correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
-			if (correctedLine === snapshot.event.line - 1) {
-				output += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
-			} else {
-				output += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
+		const [rl, answer] = readString("  What snapshot do you want to inspect:", (str: string) => {
+			return parseInt(str, 10) >= 0 && parseInt(str, 10) < snapshots.length;
+		})
+		this.readListeners.push(rl);
+		answer.then(answer => {
+			console.clear();
+			
+			let snapshotNumber = parseInt(answer);
+			let snapshot = snapshots[snapshotNumber];
+			let relativeTime = snapshot.time - startTime;
+			let text = "";
+			// Dump the entire scope
+			text += `${c.bg.green("Scope")}:\n`
+			for (const key in snapshot.scope) {
+				let value = snapshot.scope[key];
+				text += `${TAB_SM}${c.yellow(key)}: ${JSON.stringify(value)}\n`
 			}
-		}
-		console.log(output)
 
-		this.showOptionsList("");
+			// Print information about the assignment that has taken place there.
+			text += `${c.yellow(`Snapshot (${snapshotNumber})`)}:\n`
+			text += `${TAB_SM}${c.yellow("Time Recorded")}: ${relativeTime}ms after start.\n`
+			text += `${TAB_SM}${c.yellow("Line")}: ${snapshot.event.line}\n`
+			text += `${TAB_SM}${c.yellow("Assignment Type")}: ${snapshot.event.type}\n`
+			text += `${TAB_SM}${c.yellow("Name")}: "${snapshot.event.name}"\n`
+			text += `${TAB_SM}${c.yellow("Value")}: ${JSON.stringify(snapshot.event.value)}\n`
+
+			// Print the contextual lines of the file.
+			let line = snapshot.event.line;
+			let lines = fs.readFileSync(obj.inputFile).toString().split("\n");
+			let followingLines = lines.slice(line - 5, line + 4);
+			for (const [lineNumber, line] of Object.entries(followingLines)) {
+				let correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
+				if (correctedLine === snapshot.event.line - 1) {
+					text += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
+				} else {
+					text += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
+				}
+			}
+
+			console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
+
+			this.showOptionsList("");
+		})
 	}
 
 	showOptionsList(current: string) {
-		if (current !== "snapshots") console.log(`> Press ${c.bold("s")} to get a list of all captured snapshots.`)
-		if (current !== "main") console.log(`> Press ${c.bold("r")} to return to the main window.`);
-		console.log(`> Press ${c.bold("e")} to exit the debugger.`);
+		let indent = " ".repeat(Math.round(this.margin * 4))
+		if (current !== "snapshots") console.log(indent + `> Press [${c.bold("S")}] to get a list of all captured snapshots.`)
+		if (current !== "main") console.log(indent + `> Press [${c.bold("R")}] to return to the main window.`);
+		if (current === "main" && this.result.length > 1) console.log(indent + `> Press [${c.bold("LEFT")}] to navigate to the previous run or [${c.bold("RIGHT")}] for the next run.`);
+		console.log(indent + `> Press [${c.bold("E")}] to exit the debugger.`);
 
-		let char = input.readChar();
-		if (char === "s") {
-			console.clear()
-			console.log(this.formatSnapshots(this.result))
-		} else if (char === "r") {
-			this.printMain();
-		} else if (char === "e") {
-			process.exit(0);
-		}
+		const [rl, answer] = readChar(indent + "What would you like to do?\n" + indent, (char: string, key: any) => {
+			return ["s", "r", "e"].indexOf(char) > -1 || ["right", "left"].indexOf(key.name) > -1 && this.result.length > 1
+		})
+		this.readListeners.push(rl);
+		answer.then(({char, event}) => {
+			if (char === "s") {
+				this.formatSnapshots(this.result[this.currentIndex])
+			} else if (char === "r") {
+				this.printMain();
+			} else if (char === "e") {
+				process.exit(0);
+			} else if (event.name === "left" && this.result.length > 1) {
+				this.currentIndex = (this.currentIndex - 1) < 0 ? this.result.length - 1 : this.currentIndex - 1;
+				this.printMain()
+			} else if (event.name === "right" && this.result.length > 1) {
+				this.currentIndex = (this.currentIndex + 1) >= this.result.length ? 0 : this.currentIndex + 1;
+				this.printMain()
+			}
+		})
 	}
 
-	formatAssertions(): any {
+	formatAssertions(obj: OutputObject): any {
 		let output = "";
 		const TAB = " ".repeat(6);
 		const TAB_SM = " ".repeat(3);
 		// Loop through all the assertions and check if they're in a group.
 		// If they are, print the group name and the assertion.
 		// If they aren't, print the assertion.
-		let file = this.result.inputFile;
-		let groups = this.result.result.groups;
+		let file = obj.inputFile;
+		let groups = obj.result.groups;
 		// Remap the groups from {"main": [0,1]} to {"0": "main", "1": "main"};
 		let groupMap = {};
 		for (const group of Object.keys(groups)) {
@@ -284,7 +238,7 @@ class ResultPrinter {
 			}
 		}
 		// Store all assertions
-		let assertions = Object.values(this.result.result.assertions);
+		let assertions = Object.values(obj.result.assertions);
 
 		for (const assertion of assertions) {
 			let name = assertion.name;
@@ -296,7 +250,7 @@ class ResultPrinter {
 			let replacedFile = file.replace(process.cwd(), "");
 			output += groupMap[name] ? `${c.blue(groupMap[name])}: ` : "";
 			output += color(sign) + " " + `${replacedFile}:${assertion.line}` + "\n";
-			output += TAB + assertion.description + "\n";
+			if (assertion.description) output += TAB + assertion.description + "\n";
 			output += `${TAB}${c.blue("content")}: ${c.yellow(assertion.content)}\n\n`
 
 			// If the assertion failed, we want to print the line where it failed and the following 5 lines;
@@ -318,6 +272,46 @@ class ResultPrinter {
 		}
 		return output
 	}
+}
+
+type ReadlinePromise = { char: string, event: any };
+function readChar(message: string, verify = (char: string, key: any) => true): [readline.Interface, Promise<ReadlinePromise>] {
+	const ac = new AbortController();
+	const signal = ac.signal;
+	var rl = readline.createInterface({ input, output });
+	return [rl, new Promise<ReadlinePromise>((resolve, reject) => {
+
+		const listener = (char: string, k: any) => {
+			if (verify(char, k)) {
+				const closeListener = () => {
+					resolve({ char: char, event: k })
+				}
+				rl.on("close", closeListener)
+				process.stdin.removeListener("keypress", listener)
+				ac.abort()
+				rl.close();
+			} else {
+				readline.clearLine(process.stdout, 0)
+				readline.moveCursor(process.stdout, -1, 0)
+			}
+		}
+		process.stdin.on("keypress", listener)
+		rl.question(message, { signal }, () => {})
+	})]
+}
+
+function readString(message: string, verify = (str: string) => true): [readline.Interface, Promise<string>] {
+	var rl = readline.createInterface({ input, output });
+	return [rl, new Promise<string>((resolve, reject) => {
+		rl.question(message, (answer: string) => {
+			rl.close()
+			if (verify(answer)) {
+				resolve(answer);
+			} else {
+				readString(message, verify)
+			}
+		})
+	})]
 }
 
 export { ResultPrinter }

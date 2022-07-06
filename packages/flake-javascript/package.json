@@ -1,12 +1,13 @@
 {
-	"name": "@flake-testing/core",
+	"name": "@flake-universal/core",
 	"version": "1.0.0",
 	"type": "module",
 	"description": "A full-on testing library for end-to-end and unit tests in any language.",
-	"main": "./dist/testing.min.js",
+	"main": "./lib/flake.js",
 	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1",
-		"build": "webpack --config=webpack.config.cjs"
+		"test": "node ./lib/executeFile.js -p ./test/flake.config.json",
+		"build": "webpack --config=webpack.config.cjs",
+		"build:watch": "webpack --config=webpack.config.cjs --watch"
 	},
 	"author": "letsmoe",
 	"license": "MIT",
@@ -16,6 +17,7 @@
 		"@types/prismjs": "^1.26.0"
 	},
 	"dependencies": {
+		"@flake-universal/core": "file:../core",
 		"acorn": "^8.7.1",
 		"acorn-walk": "^8.2.0",
 		"colarg": "^1.1.4",
@@ -23,6 +25,6 @@
 		"jsdom": "^19.0.0"
 	},
 	"bin": {
-		"flake": "./lib/cli/cli.js"
+		"flake": "./lib/executeFile.js"
 	}
 }

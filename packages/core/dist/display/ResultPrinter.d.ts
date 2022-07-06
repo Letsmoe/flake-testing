@@ -1,14 +1,20 @@
-import { ResultPipe } from "../class.ResultPipe";
+import { OutputObject } from "../types";
 declare class ResultPrinter {
-    private pipe;
+    private headers;
     private result;
-    constructor(pipe: ResultPipe);
+    private margin;
+    private currentIndex;
+    constructor();
     private formatResultInfo;
     private formatHeader;
-    print(identifier: string): void;
+    addHeader(message: string): void;
+    reserveHeader(message: string): (msg: string) => void;
+    print(result: OutputObject[]): void;
+    private readListeners;
+    private closeAllListeners;
     private printMain;
     private formatSnapshots;
     showOptionsList(current: string): void;
-    formatAssertions(): any;
+    formatAssertions(obj: OutputObject): any;
 }
 export { ResultPrinter };

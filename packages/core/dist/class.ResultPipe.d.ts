@@ -1,3 +1,4 @@
+/// <reference types="node" />
 import { FlakeConfigObject } from "./config/config.type.js";
 import * as fs from "fs";
 /**

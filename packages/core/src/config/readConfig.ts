@@ -47,6 +47,7 @@ function readConfig(dirPath: string): Promise<FlakeConfigObject> {
 				let obj = JSON.parse(
 					fs.readFileSync(`${dirPath}/${file}`, "utf8")
 				);
+				obj.own = {}
 				obj.own.dirPath = dirPath
 				obj.own.fileName = dirPath + "/" + file
 				resolve(Object.assign(defaultConfig, obj));

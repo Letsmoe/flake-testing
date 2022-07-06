@@ -8,6 +8,5 @@ function main() {
 
 
 main().then(function(value) {
-	$:
-		value == 42;
+	$: value == 42;
 })

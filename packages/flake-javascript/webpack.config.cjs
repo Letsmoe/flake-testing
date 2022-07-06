@@ -2,12 +2,12 @@ const path = require('path');
 
 module.exports = [{
 	mode: "production",
-	entry: "./lib/index.js",
+	entry: "./lib/executeFile.js",
 	experiments: {
 		outputModule: true
 	},
 	output: {
-		filename: "testing.min.js",
+		filename: "index.min.js",
 		path: path.resolve(__dirname, 'dist'),
 		library: {
 			type: "module"
