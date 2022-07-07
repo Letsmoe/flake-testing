@@ -1,5 +1,5 @@
 import { SpecifierObject } from "./SpecifierObject";
-export type ImportObject = {
+export declare type ImportObject = {
     line: number;
     from: number;
     to: number;

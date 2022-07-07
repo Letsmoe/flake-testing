@@ -9,7 +9,7 @@ export type OutputObject = {
 	status?: boolean;
 	result: ResultObject;
 	imports: ImportObject[];
-	snapshots: SnapshotObject[],
+	snapshots: SnapshotObject[];
 	startTime: number;
 	endTime: number;
-}
+};

@@ -1,4 +1,4 @@
-import { main } from "./module.js"
+import defaultImport, { main } from "./module.js"
 
 let result = main();
 // @every We're testing the "main" function which returns 42 when called.

@@ -135,6 +135,9 @@ export function RewriteJavaScriptFileContent(content: string) {
 					}),
 				},
 				Literal(node.source.value),
+				Literal(node.start),
+				Literal(node.end),
+				Literal(getCurrentLine(node.start))
 			]);
 			imports.push({
 				source: node.source.value,
@@ -148,6 +151,9 @@ export function RewriteJavaScriptFileContent(content: string) {
 						default: isDefault,
 					};
 				}),
+				line: getCurrentLine(node.start),
+				from: node.start,
+				to: node.end
 			});
 			delete node.source;
 			delete node.specifiers;
@@ -303,6 +309,8 @@ export function RewriteJavaScriptFileContent(content: string) {
 	
 	function RewriteLabeledStatementBody(body: any, comments: string[]) {
 		let bodyAsString = escodegen.generate(body.expression);
+		console.log(body.expression);
+		
 		let lineNumber = getCurrentLine(body.start);
 	
 		let newBody = CallExpression("_make_assertion", [

@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-import { Flake, allowExecution } from "@flake-universal/core";
+import { Flake, allowExecution, SpecifierObject } from "@flake-universal/core";
 import {
 	OutputObject,
 	ImportObject,
@@ -121,8 +121,14 @@ if (allowExecution) {
 				}
 				var expectCount = 0;
 	
-				function receiveModuleImport(importStatement: ImportObject) {
-					output.imports.push(importStatement);
+				function receiveModuleImport(specifiers: SpecifierObject[], source: string, from: number, to: number, line: number) {
+					output.imports.push({
+						line,
+						from,
+						to,
+						source,
+						specifiers
+					})
 				}
 	
 				function getResults(file: string, callback: Function) {

@@ -6,7 +6,9 @@
 	"main": "./dist/flake.js",
 	"types": "./dist/index.d.ts",
 	"scripts": {
-		"test": "flake --config=test/flake.config.json --dir=test/"
+		"test": "flake --config=test/flake.config.json --dir=test/",
+		"build:content:watch": "webpack --config=./assets/webpack.config.cjs --watch",
+		"tsc:content:watch": "tsc --project ./assets/src/content.tsconfig.json --watch"
 	},
 	"keywords": [
 		"unit-tests",
@@ -15,6 +17,7 @@
 	"author": "letsmoe",
 	"license": "MIT",
 	"dependencies": {
+		"@snowblind/core": "file:../../../snowblind/src/@snowblind-core",
 		"boxen": "^7.0.0",
 		"chokidar": "^3.5.3",
 		"colarg": "^1.1.4",

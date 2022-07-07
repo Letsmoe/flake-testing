@@ -88,8 +88,14 @@ if (allowExecution) {
                 expectCount = count;
             }
             var expectCount = 0;
-            function receiveModuleImport(importStatement) {
-                output.imports.push(importStatement);
+            function receiveModuleImport(specifiers, source, from, to, line) {
+                output.imports.push({
+                    line,
+                    from,
+                    to,
+                    source,
+                    specifiers
+                });
             }
             function getResults(file, callback) {
                 let start = Date.now();

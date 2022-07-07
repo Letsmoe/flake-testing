@@ -6,5 +6,8 @@ export declare type VariableDeclarationObject = acorn.Node & {
 export declare type ImportObject = {
     source: string;
     specifiers: any[];
+    from: number;
+    to: number;
+    line: number;
 };
 //# sourceMappingURL=types.d.ts.map
