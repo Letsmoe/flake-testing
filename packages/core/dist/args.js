@@ -3,6 +3,7 @@ import * as fs from "fs";
 import { basename } from "path";
 import { c } from "./display/color.js";
 import { ResultPrinter } from "./display/ResultPrinter.js";
+import { getResults } from "./utils/results.js";
 var allowExecution = true;
 var args = colarg(process.argv.slice(2))
     .option({
@@ -100,14 +101,5 @@ var args = colarg(process.argv.slice(2))
     });
     process.exit(0);
 }).help().args;
-function getResults() {
-    var p = process.cwd() + "/.flake/results/";
-    if (fs.existsSync(p)) {
-        return fs.readdirSync(p);
-    }
-    else {
-        throw new Error("The results directory does not exist. Can't pull results.");
-    }
-}
 export { args, allowExecution };
 //# sourceMappingURL=args.js.map

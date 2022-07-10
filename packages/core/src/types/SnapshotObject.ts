@@ -8,5 +8,6 @@ export type SnapshotObject = {
 		name: string;
 		value: any;
 	},
+	context: {[key: string]: string},
 	scope: {[key: string]: any}
 }

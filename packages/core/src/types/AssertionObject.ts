@@ -6,4 +6,5 @@ export type AssertionObject = {
 	content: string;
 	name: string;
 	result: boolean;
+	context: {[key: string]: string};
 }

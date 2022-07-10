@@ -1,4 +1,3 @@
-import * as fs from "fs";
 import { c } from "./color.js";
 import boxen from "boxen";
 import * as readline from 'node:readline';
@@ -111,7 +110,7 @@ var ResultPrinter = /** @class */ (function () {
         var text = "";
         text += this.formatAssertions(currentResult) + "\n";
         text += this.formatResultInfo(currentResult);
-        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin, width: 100 }));
+        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin }));
         this.showOptionsList("main");
     };
     ResultPrinter.prototype.formatSnapshots = function (obj) {
@@ -132,7 +131,7 @@ var ResultPrinter = /** @class */ (function () {
             text += "".concat(TAB_SM).concat(c.yellow("Name"), ": \"").concat(snapshot.event.name, "\"\n");
             i++;
         }
-        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin, width: 100 }));
+        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin }));
         var _a = readString("  What snapshot do you want to inspect:", function (str) {
             return parseInt(str, 10) >= 0 && parseInt(str, 10) < snapshots.length;
         }), rl = _a[0], answer = _a[1];
@@ -157,20 +156,17 @@ var ResultPrinter = /** @class */ (function () {
             text += "".concat(TAB_SM).concat(c.yellow("Name"), ": \"").concat(snapshot.event.name, "\"\n");
             text += "".concat(TAB_SM).concat(c.yellow("Value"), ": ").concat(JSON.stringify(snapshot.event.value), "\n");
             // Print the contextual lines of the file.
-            var line = snapshot.event.line;
-            var lines = fs.readFileSync(obj.inputFile).toString().split("\n");
-            var followingLines = lines.slice(line - 5, line + 4);
-            for (var _i = 0, _a = Object.entries(followingLines); _i < _a.length; _i++) {
-                var _b = _a[_i], lineNumber = _b[0], line_1 = _b[1];
-                var correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
-                if (correctedLine === snapshot.event.line - 1) {
-                    text += "".concat(TAB_SM).concat(c.red(">> ".concat(correctedLine + 1, "|"))).concat(TAB_SM).concat(line_1, "\n");
+            for (var _i = 0, _a = Object.entries(snapshot.context); _i < _a.length; _i++) {
+                var _b = _a[_i], lineNumber = _b[0], line = _b[1];
+                var correctedLine = parseInt(lineNumber, 10);
+                if (correctedLine === snapshot.event.line) {
+                    text += "".concat(TAB_SM).concat(c.red(">> ".concat(correctedLine + 1, "|"))).concat(TAB_SM).concat(line, "\n");
                 }
                 else {
-                    text += "".concat(TAB).concat(correctedLine + 1, "|").concat(TAB_SM).concat(line_1, "\n");
+                    text += "".concat(TAB).concat(correctedLine + 1, "|").concat(TAB_SM).concat(line, "\n");
                 }
             }
-            console.log(boxen(text, { title: "Page ".concat(_this.currentIndex + 1, " of ").concat(_this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: _this.margin, width: 100 }));
+            console.log(boxen(text, { title: "Page ".concat(_this.currentIndex + 1, " of ").concat(_this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: _this.margin }));
             _this.showOptionsList("");
         });
     };
@@ -239,19 +235,17 @@ var ResultPrinter = /** @class */ (function () {
             // Remove the path of the config from the filepath since we don't want to list literally the whole thing.
             var replacedFile = file.replace(process.cwd(), "");
             output += groupMap[name_2] ? "".concat(c.blue(groupMap[name_2]), ": ") : "";
-            output += color(sign) + " " + "".concat(replacedFile, ":").concat(assertion.line) + "\n";
+            output += color(sign) + " " + "".concat(replacedFile, ":").concat(assertion.line + 1) + "\n";
             if (assertion.description)
                 output += TAB + assertion.description + "\n";
             output += "".concat(TAB).concat(c.blue("content"), ": ").concat(c.yellow(assertion.content), "\n\n");
             // If the assertion failed, we want to print the line where it failed and the following 5 lines;
             if (!assertion.result) {
-                var lines = fs.readFileSync(file).toString().split("\n");
-                var followingLines = lines.slice(assertion.line - 3, assertion.line + 4);
-                for (var _e = 0, _f = Object.entries(followingLines); _e < _f.length; _e++) {
+                for (var _e = 0, _f = Object.entries(assertion.context); _e < _f.length; _e++) {
                     var _g = _f[_e], lineNumber = _g[0], line = _g[1];
-                    var correctedLine = parseInt(lineNumber, 10) + assertion.line - 3;
+                    var correctedLine = parseInt(lineNumber, 10);
                     var strLine = (correctedLine + 1).toString().padStart(2, " ");
-                    if (correctedLine === assertion.line - 1) {
+                    if (correctedLine === assertion.line) {
                         output += "".concat(TAB_SM).concat(c.red(">> ".concat(strLine, "|"))).concat(TAB_SM).concat(c.red(line), "\n");
                     }
                     else {

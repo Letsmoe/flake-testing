@@ -34,6 +34,10 @@ interface FlakeConfigObject {
      * Whether to compare to truthiness or strict "true"
      */
     strictCompare: boolean;
+    /**
+     * How many lines should be visible around an error to contextualize the error message.
+     */
+    contextualLines: number;
     [k: string]: unknown;
 }
 export { FlakeConfigObject };

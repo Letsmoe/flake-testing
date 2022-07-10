@@ -25,6 +25,7 @@
 		"js-yaml": "^4.1.0",
 		"jsonschema": "^1.4.1",
 		"mime-types": "^2.1.35",
+		"open": "^8.4.0",
 		"supports-color": "^9.2.2",
 		"ws": "^8.8.0"
 	},

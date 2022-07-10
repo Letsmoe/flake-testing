@@ -1,7 +1,7 @@
 import { FlakeConfigObject } from "./config/config.type";
 import { ResultPrinter } from "./display/ResultPrinter.js";
 import { allowExecution } from "./args.js";
-import { OutputObject } from "./types/OutputObject";
+import { OutputObject } from "./types/index";
 interface ConnectionOptions {
     displayOnSubmit?: boolean;
     defaultFileExtension?: string;
@@ -16,9 +16,14 @@ declare class Connection {
     private resultMap;
     private dir;
     private directory;
+    private contextualLines;
     printer: ResultPrinter;
     constructor(config: FlakeConfigObject, options: ConnectionOptions);
+    private attachWSListeners;
     submit(obj: OutputObject[]): void;
+    private runAllFiles;
+    private runFile;
+    private matchers;
     subscribe(matcher: RegExp, callback: Flake.ConnectionCallback): void;
     /**
      * A function to prepare for the execution and submission of a result.

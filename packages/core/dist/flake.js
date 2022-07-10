@@ -41,18 +41,20 @@ import * as path from "path";
 import { sha256 } from "crypto-hash";
 import { ResultPrinter } from "./display/ResultPrinter.js";
 import { args, allowExecution } from "./args.js";
-import * as http from "http";
-import * as ws from "ws";
-import * as mime from "mime-types";
-import { fileURLToPath } from 'url';
-var __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { default as WebSocketServer } from "./WebSocketServer.js";
+import { getResults } from "./utils/results.js";
+import { default as Server } from "./Server.js";
+import open from "open";
+import { spawn } from "node:child_process";
 var dir = "";
 var DirectoryReader = /** @class */ (function () {
     function DirectoryReader(config) {
         this.config = config;
         this.dir = "";
         // If a config was given we take the path from that else we use the current directory
-        var configPath = args.config ? path.join(process.cwd(), path.dirname(args.config)) : process.cwd();
+        var configPath = args.config
+            ? path.join(process.cwd(), path.dirname(args.config))
+            : process.cwd();
         this.dir = path.join(configPath, config.dir);
     }
     /**
@@ -88,71 +90,6 @@ var DirectoryReader = /** @class */ (function () {
     };
     return DirectoryReader;
 }());
-var Server = /** @class */ (function () {
-    function Server(port) {
-        if (port === void 0) { port = 8086; }
-        this.instance = http.createServer(this.requestListener.bind(this));
-        this.instance.listen(port);
-    }
-    Server.prototype.requestListener = function (req, res) {
-        var p = path.join(__dirname, "../assets/", req.url == "/" ? "index.html" : req.url);
-        if (fs.existsSync(p) && !fs.statSync(p).isDirectory()) {
-            var type = mime.lookup(p);
-            res.setHeader("Content-Type", type);
-            res.writeHead(200);
-            var content = fs.readFileSync(p);
-            res.end(content);
-        }
-        else {
-            res.setHeader("Content-Type", "text/html");
-            res.writeHead(200);
-            res.end("<h1>Missing files, consider reinstalling.</h1>");
-        }
-    };
-    return Server;
-}());
-var WSServer = /** @class */ (function () {
-    function WSServer(port) {
-        if (port === void 0) { port = 8088; }
-        this.connections = new Map();
-        this.lastPacket = [];
-        this.connectionCount = 0;
-        this.instance = new ws.WebSocketServer({ port: port });
-        this.instance.on("connection", this.connectionReceiver.bind(this));
-    }
-    WSServer.prototype.onStateChange = function () { };
-    WSServer.prototype.connectionReceiver = function (ws) {
-        var _this = this;
-        this.connectionCount++;
-        console.log("Client connected to server.");
-        var id = Symbol("id");
-        ws.on("message", function (data) {
-        });
-        ws.on("close", function () {
-            _this.connections.delete(id);
-            _this.connectionCount--;
-            _this.onStateChange();
-        });
-        ws.onerror = function () {
-            console.log("Error occurred in Websocket connection.");
-        };
-        this.connections.set(id, ws);
-        this.onStateChange();
-        this.submit(this.lastPacket);
-    };
-    WSServer.prototype.submit = function (obj) {
-        this.lastPacket = obj;
-        var data = JSON.stringify({
-            type: "POST",
-            action: "DISPLAY_RESULT",
-            data: obj
-        });
-        this.connections.forEach(function (connection) {
-            connection.send(data);
-        });
-    };
-    return WSServer;
-}());
 var Connection = /** @class */ (function () {
     function Connection(config, options) {
         var _this = this;
@@ -160,13 +97,17 @@ var Connection = /** @class */ (function () {
         this.contentMap = {};
         this.resultMap = {};
         this.printer = new ResultPrinter();
+        this.matchers = [];
         this.options = Object.assign({
             displayOnSubmit: true,
             defaultFileExtension: "",
-            enableServer: false
+            enableServer: false,
         }, options);
         // If a config was given we take the path from that else we use the current directory
-        var configPath = args.config ? path.join(process.cwd(), path.dirname(args.config)) : process.cwd();
+        var configPath = args.config
+            ? path.join(process.cwd(), path.dirname(args.config))
+            : process.cwd();
+        this.contextualLines = this.config.contextualLines || 3;
         this.dir = path.join(configPath, config.dir);
         dir = this.dir;
         this.directory = new DirectoryReader(config);
@@ -174,7 +115,8 @@ var Connection = /** @class */ (function () {
         // If requested open a server and a Websocket server to display all results.
         if (this.options.enableServer === true) {
             this.server = new Server();
-            this.wsServer = new WSServer();
+            this.wsServer = new WebSocketServer();
+            this.attachWSListeners();
             this.printer.addHeader("Local server opened: http://localhost:8086;");
             // Reserve a header that can be updated once a client connects to the server.
             var setWsHeader_1 = this.printer.reserveHeader("WebSocket server opened on port 8088; 0 clients connected;");
@@ -183,31 +125,71 @@ var Connection = /** @class */ (function () {
             };
         }
     }
+    Connection.prototype.attachWSListeners = function () {
+        var _this = this;
+        this.wsServer.onMessage("REMOVE_ALL", function () {
+            var files = getResults();
+            files.forEach(function (file) {
+                var p = process.cwd() + "/.flake/results/" + file;
+                if (fs.existsSync(p)) {
+                    fs.rmSync(p);
+                }
+            });
+            _this.submit([]);
+        });
+        this.wsServer.onMessage("RUN_ALL", function () {
+            _this.runAllFiles();
+        });
+        this.wsServer.onMessage("OPEN_FILE", function (data) {
+            // Check if vscode is installed, then we can open at the specified line
+            if (data.hasOwnProperty("line") && data.hasOwnProperty("column")) {
+                var vsVersion = spawn("code", ["--version"]);
+                vsVersion.on("close", function (code) {
+                    if (code === 0) {
+                        // VSCode is installed, open the file with that.
+                        spawn("code", ["--goto", "".concat(data.file, ":").concat(data.line, ":").concat(data.column)]);
+                    }
+                    else {
+                        open(data.file);
+                    }
+                });
+            }
+            else {
+                open(data.file);
+            }
+        });
+    };
     Connection.prototype.submit = function (obj) {
         this.wsServer.submit(obj);
     };
-    Connection.prototype.subscribe = function (matcher, callback) {
+    Connection.prototype.runAllFiles = function () {
         var _this = this;
-        // Watch the config.dir for file changes, if they match the matcher RegExp call the callback on them.
-        chokidar.watch(this.dir).on("all", function (event, file) { return __awaiter(_this, void 0, void 0, function () {
-            var _i, _a, pattern, content, hash_1, submit;
+        var files = fs.readdirSync(this.dir);
+        files.forEach(function (file) {
+            _this.runFile(path.join(_this.dir, file));
+        });
+    };
+    Connection.prototype.runFile = function (file) {
+        var _this = this;
+        for (var _i = 0, _a = this.config.exclude.concat(".*\\.flake.*"); _i < _a.length; _i++) {
+            var pattern = _a[_i];
+            if (new RegExp(pattern).test(file)) {
+                return;
+            }
+        }
+        this.matchers.forEach(function (comb) { return __awaiter(_this, void 0, void 0, function () {
+            var matcher, callback, content, hash_1, submit;
             var _this = this;
-            return __generator(this, function (_b) {
-                switch (_b.label) {
+            return __generator(this, function (_a) {
+                switch (_a.label) {
                     case 0:
-                        // Check if this path should be excluded
-                        // Loop through the configs exclude patterns and test against each
-                        for (_i = 0, _a = this.config.exclude.concat(".*\\.flake.*"); _i < _a.length; _i++) {
-                            pattern = _a[_i];
-                            if (new RegExp(pattern).test(file)) {
-                                return [2 /*return*/];
-                            }
-                        }
-                        if (!((event === "add" || event === "change") && matcher.test(file))) return [3 /*break*/, 2];
+                        matcher = comb[0];
+                        callback = comb[1];
+                        if (!matcher.test(file)) return [3 /*break*/, 2];
                         content = fs.readFileSync(file);
                         return [4 /*yield*/, sha256(content)];
                     case 1:
-                        hash_1 = _b.sent();
+                        hash_1 = _a.sent();
                         // Write the hash and file name to our map so we can reference it later.
                         this.contentMap[hash_1] = file;
                         submit = function (content) {
@@ -217,9 +199,31 @@ var Connection = /** @class */ (function () {
                         };
                         // Submit the file event to the user;
                         callback(submit, hash_1, content.toString());
-                        _b.label = 2;
+                        _a.label = 2;
                     case 2: return [2 /*return*/];
                 }
+            });
+        }); });
+    };
+    Connection.prototype.subscribe = function (matcher, callback) {
+        var _this = this;
+        this.matchers.push([matcher, callback]);
+        // Watch the config.dir for file changes, if they match the matcher RegExp call the callback on them.
+        chokidar.watch(this.dir).on("all", function (event, file) { return __awaiter(_this, void 0, void 0, function () {
+            var _i, _a, pattern;
+            return __generator(this, function (_b) {
+                // Check if this path should be excluded
+                // Loop through the configs exclude patterns and test against each
+                for (_i = 0, _a = this.config.exclude.concat(".*\\.flake.*"); _i < _a.length; _i++) {
+                    pattern = _a[_i];
+                    if (new RegExp(pattern).test(file)) {
+                        return [2 /*return*/];
+                    }
+                }
+                if ((event === "add" || event === "change") && matcher.test(file)) {
+                    this.runFile(file);
+                }
+                return [2 /*return*/];
             });
         }); });
     };
@@ -236,6 +240,28 @@ var Connection = /** @class */ (function () {
         if (this.contentMap.hasOwnProperty(hash)) {
             callback(null, function (result) {
                 result.inputFile = _this.contentMap[hash];
+                // Add context to all failed tests
+                var fileContent = fs.readFileSync(_this.contentMap[hash], "utf-8");
+                var lines = fileContent.split("\n");
+                var getContext = function (line) {
+                    var contextLines = {};
+                    // We can't get any information about what lines we're looking at if we hit the end of the file, so we have to reorder the lines into an object ({line: content})
+                    for (var i = 0; i < lines.length; i++) {
+                        if (i >= line - _this.contextualLines &&
+                            i <= line + _this.contextualLines) {
+                            contextLines[i] = lines[i];
+                        }
+                    }
+                    return contextLines;
+                };
+                result.result.assertions.forEach(function (assertion) {
+                    // Get the line and add context from the lines around it.
+                    assertion.context = getContext(assertion.line);
+                });
+                result.snapshots.forEach(function (snapshot) {
+                    // Get the line and add context from the lines around it.
+                    snapshot.context = getContext(snapshot.event.line);
+                });
                 // Store the results of the test in the result map and write them to storage.
                 _this.resultMap[hash] = result;
                 // Write the result map to storage
@@ -262,7 +288,9 @@ var Flake;
         return __awaiter(this, void 0, void 0, function () {
             return __generator(this, function (_a) {
                 return [2 /*return*/, new Promise(function (resolve, reject) {
-                        readConfig(args.config ? path.join(process.cwd(), path.dirname(args.config)) : basePath).then(function (config) {
+                        readConfig(args.config
+                            ? path.join(process.cwd(), path.dirname(args.config))
+                            : basePath).then(function (config) {
                             resolve(config);
                         });
                     })];

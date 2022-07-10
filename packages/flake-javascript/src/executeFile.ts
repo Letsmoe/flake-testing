@@ -80,6 +80,7 @@ if (allowExecution) {
 							value: value,
 						},
 						scope: currentScope.getAll(),
+						context: {}
 					});
 					return value;
 				}
@@ -102,6 +103,7 @@ if (allowExecution) {
 						content,
 						// Check if the result is truthy or - if strictCompare is set to true - if it is "true".
 						result: config.strictCompare ? result === true : !!result,
+						context: {}
 					});
 				}
 	

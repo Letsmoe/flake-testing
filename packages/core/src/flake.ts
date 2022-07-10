@@ -5,24 +5,31 @@ import * as fs from "fs";
 import * as path from "path";
 import { sha256 } from "crypto-hash";
 import { ResultPrinter } from "./display/ResultPrinter.js";
-import { args, allowExecution } from "./args.js"
-import * as http from "http";
-import * as ws from "ws";
-import { OutputObject } from "./types/OutputObject";
-import * as mime from "mime-types";
-
-import { fileURLToPath } from 'url';
-
-const __dirname = path.dirname(fileURLToPath(import.meta.url));
+import { args, allowExecution } from "./args.js";
+import { default as WebSocketServer } from "./WebSocketServer.js";
+import { __dirname } from "./dirname.js";
+import { getResults } from "./utils/results.js";
+import { AssertionObject, SnapshotObject, OutputObject } from "./types/index";
+import { default as Server } from "./Server.js";
+import open from "open";
+import { spawn } from "node:child_process";
 
 var dir = "";
+
+interface ConnectionOptions {
+	displayOnSubmit?: boolean;
+	defaultFileExtension?: string;
+	enableServer?: boolean;
+}
 
 class DirectoryReader {
 	private dir: string = "";
 
 	constructor(private config: FlakeConfigObject) {
 		// If a config was given we take the path from that else we use the current directory
-		let configPath = args.config ? path.join(process.cwd(), path.dirname(args.config)) : process.cwd();
+		let configPath = args.config
+			? path.join(process.cwd(), path.dirname(args.config))
+			: process.cwd();
 
 		this.dir = path.join(configPath, config.dir);
 	}
@@ -62,141 +69,116 @@ class DirectoryReader {
 	}
 }
 
-interface ConnectionOptions {
-	displayOnSubmit?: boolean;
-	defaultFileExtension?: string;
-	enableServer?: boolean;
-}
-
-
-class Server {
-	private instance: http.Server;
-	constructor(port: number = 8086) {
-		this.instance = http.createServer(this.requestListener.bind(this));
-		this.instance.listen(port);
-	}
-
-	public requestListener(req: http.IncomingMessage, res: http.ServerResponse) {
-		let p = path.join(__dirname, "../assets/", req.url == "/" ? "index.html" : req.url);
-		if (fs.existsSync(p) && !fs.statSync(p).isDirectory()) {
-			let type = mime.lookup(p) as string
-			res.setHeader("Content-Type", type);
-			res.writeHead(200);
-			let content = fs.readFileSync(p);
-			res.end(content);
-		} else {
-			res.setHeader("Content-Type", "text/html");
-			res.writeHead(200)
-			res.end("<h1>Missing files, consider reinstalling.</h1>")
-		}
-	}
-}
-
-class WSServer {
-	private instance: ws.WebSocketServer;
-	private connections: Map<Symbol, ws.WebSocket> = new Map<Symbol, ws.WebSocket>();
-	private lastPacket: OutputObject[] = [];
-	public connectionCount: number = 0;
-
-	constructor(port: number = 8088) {
-		this.instance = new ws.WebSocketServer({ port });
-		this.instance.on("connection", this.connectionReceiver.bind(this));
-	}
-
-	public onStateChange() {}
-
-	private connectionReceiver(ws: ws.WebSocket) {
-		this.connectionCount++
-		console.log("Client connected to server.");
-		let id = Symbol("id");
-		
-		ws.on("message", (data) => {
-
-		})
-
-		ws.on("close", () => {
-			this.connections.delete(id);
-			this.connectionCount--
-			this.onStateChange()
-		})
-
-		ws.onerror = () => {
-			console.log("Error occurred in Websocket connection.")
-		}
-
-		this.connections.set(id, ws);
-		this.onStateChange()
-		this.submit(this.lastPacket);
-	}
-
-	public submit(obj: OutputObject[]) {
-		this.lastPacket = obj;
-		let data = JSON.stringify({
-			type: "POST",
-			action: "DISPLAY_RESULT",
-			data: obj
-		});
-		this.connections.forEach(connection => {
-			connection.send(data);
-		})
-	}
-}
-
 class Connection {
 	private server?: Server;
-	private wsServer?: WSServer;
+	private wsServer?: WebSocketServer;
 	public options: ConnectionOptions;
 	private contentMap: { [key: string]: string } = {};
-	private resultMap: {[key: string]: any} = {};
+	private resultMap: { [key: string]: any } = {};
 	private dir: string;
 	private directory: DirectoryReader;
+	private contextualLines: number;
 	public printer: ResultPrinter = new ResultPrinter();
 
 	constructor(private config: FlakeConfigObject, options: ConnectionOptions) {
-		this.options = Object.assign({
-			displayOnSubmit: true,
-			defaultFileExtension: "",
-			enableServer: false
-		}, options);
+		this.options = Object.assign(
+			{
+				displayOnSubmit: true,
+				defaultFileExtension: "",
+				enableServer: false,
+			},
+			options
+		);
 
 		// If a config was given we take the path from that else we use the current directory
-		let configPath = args.config ? path.join(process.cwd(), path.dirname(args.config)) : process.cwd();
+		let configPath = args.config
+			? path.join(process.cwd(), path.dirname(args.config))
+			: process.cwd();
 
+		this.contextualLines = this.config.contextualLines || 3;
 		this.dir = path.join(configPath, config.dir);
 		dir = this.dir;
 		this.directory = new DirectoryReader(config);
-		this.directory.constructFolders()
-
+		this.directory.constructFolders();
 
 		// If requested open a server and a Websocket server to display all results.
 		if (this.options.enableServer === true) {
 			this.server = new Server();
-			this.wsServer = new WSServer();
+			this.wsServer = new WebSocketServer();
+			this.attachWSListeners();
 
-			this.printer.addHeader("Local server opened: http://localhost:8086;");
+			this.printer.addHeader(
+				"Local server opened: http://localhost:8086;"
+			);
 			// Reserve a header that can be updated once a client connects to the server.
-			let setWsHeader = this.printer.reserveHeader("WebSocket server opened on port 8088; 0 clients connected;")
+			let setWsHeader = this.printer.reserveHeader(
+				"WebSocket server opened on port 8088; 0 clients connected;"
+			);
 			this.wsServer.onStateChange = () => {
-				setWsHeader(`WebSocket server opened on port 8088; ${this.wsServer.connectionCount} clients connected;`)
-			}
+				setWsHeader(
+					`WebSocket server opened on port 8088; ${this.wsServer.connectionCount} clients connected;`
+				);
+			};
 		}
 	}
 
-	public submit(obj: OutputObject[]) {
-		this.wsServer.submit(obj)
+	private attachWSListeners() {
+		this.wsServer.onMessage("REMOVE_ALL", () => {
+			let files = getResults();
+
+			files.forEach((file) => {
+				let p = process.cwd() + "/.flake/results/" + file;
+				if (fs.existsSync(p)) {
+					fs.rmSync(p);
+				}
+			});
+			this.submit([]);
+		});
+
+		this.wsServer.onMessage("RUN_ALL", () => {
+			this.runAllFiles();
+		});
+
+		this.wsServer.onMessage("OPEN_FILE", (data: {file: string, line: number, column: number}) => {
+			// Check if vscode is installed, then we can open at the specified line
+			if (data.hasOwnProperty("line") && data.hasOwnProperty("column")) {
+				let vsVersion = spawn("code", ["--version"]);
+				vsVersion.on("close", (code) => {
+					if (code === 0) {
+						// VSCode is installed, open the file with that.
+						spawn("code", ["--goto", `${data.file}:${data.line}:${data.column}`])
+					} else {
+						open(data.file)
+					}
+				})
+			} else {
+				open(data.file)
+			}
+		})
 	}
 
-	public subscribe(matcher: RegExp, callback: Flake.ConnectionCallback) {
-		// Watch the config.dir for file changes, if they match the matcher RegExp call the callback on them.
-		chokidar.watch(this.dir).on("all", async (event, file) => {
-			// Check if this path should be excluded
-			// Loop through the configs exclude patterns and test against each
-			for (const pattern of this.config.exclude.concat(".*\\.flake.*")) {
-				if (new RegExp(pattern).test(file)) {
-					return
-				}
+	public submit(obj: OutputObject[]) {
+		this.wsServer.submit(obj);
+	}
+
+	private runAllFiles() {
+		let files = fs.readdirSync(this.dir);
+		files.forEach((file) => {
+			this.runFile(path.join(this.dir, file));
+		});
+	}
+
+	private runFile(file: string) {
+		for (const pattern of this.config.exclude.concat(".*\\.flake.*")) {
+			if (new RegExp(pattern).test(file)) {
+				return;
 			}
-			if ((event === "add" || event === "change") && matcher.test(file)) {
+		}
+
+		this.matchers.forEach(async (comb) => {
+			let matcher = comb[0];
+			let callback = comb[1];
+			if (matcher.test(file)) {
 				// Read the file content;
 				let content = fs.readFileSync(file);
 				// Create a hash on the file content and store it in the map
@@ -215,6 +197,25 @@ class Connection {
 		});
 	}
 
+	private matchers: [RegExp, Function][] = [];
+
+	public subscribe(matcher: RegExp, callback: Flake.ConnectionCallback) {
+		this.matchers.push([matcher, callback]);
+		// Watch the config.dir for file changes, if they match the matcher RegExp call the callback on them.
+		chokidar.watch(this.dir).on("all", async (event, file) => {
+			// Check if this path should be excluded
+			// Loop through the configs exclude patterns and test against each
+			for (const pattern of this.config.exclude.concat(".*\\.flake.*")) {
+				if (new RegExp(pattern).test(file)) {
+					return;
+				}
+			}
+			if ((event === "add" || event === "change") && matcher.test(file)) {
+				this.runFile(file);
+			}
+		});
+	}
+
 	/**
 	 * A function to prepare for the execution and submission of a result.
 	 * @date 7/3/2022 - 12:53:04 PM
@@ -223,39 +224,100 @@ class Connection {
 	 * @param {string} hash
 	 * @param {((err: Error | null, submitResult: (result: any) => void) => void)} callback
 	 */
-	public prepare(hash: string, callback: (err: Error | null, submitResult?: (result: any) => void) => void): void {
+	public prepare(
+		hash: string,
+		callback: (
+			err: Error | null,
+			submitResult?: (result: any) => void
+		) => void
+	): void {
 		if (this.contentMap.hasOwnProperty(hash)) {
-			callback(null, (result: any) => {
+			callback(null, (result: OutputObject) => {
 				result.inputFile = this.contentMap[hash];
+				// Add context to all failed tests
+				let fileContent = fs.readFileSync(
+					this.contentMap[hash],
+					"utf-8"
+				);
+				let lines = fileContent.split("\n");
+
+				const getContext = (line: number) => {
+					let contextLines = {};
+					// We can't get any information about what lines we're looking at if we hit the end of the file, so we have to reorder the lines into an object ({line: content})
+					for (let i = 0; i < lines.length; i++) {
+						if (
+							i >= line - this.contextualLines &&
+							i <= line + this.contextualLines
+						) {
+							contextLines[i] = lines[i];
+						}
+					}
+					return contextLines;
+				};
+				result.result.assertions.forEach(
+					(assertion: AssertionObject) => {
+						// Get the line and add context from the lines around it.
+						assertion.context = getContext(assertion.line);
+					}
+				);
+				result.snapshots.forEach((snapshot: SnapshotObject) => {
+					// Get the line and add context from the lines around it.
+					snapshot.context = getContext(snapshot.event.line);
+				});
 				// Store the results of the test in the result map and write them to storage.
-				this.resultMap[hash] = result
+				this.resultMap[hash] = result;
 				// Write the result map to storage
-				fs.writeFileSync(path.join(this.dir, ".flake", "results", Date.now().toString()), JSON.stringify(this.resultMap[hash]));
+				fs.writeFileSync(
+					path.join(
+						this.dir,
+						".flake",
+						"results",
+						Date.now().toString()
+					),
+					JSON.stringify(this.resultMap[hash])
+				);
 				// Remove the test file from cache
-				fs.rmSync(path.join(this.dir, hash + "." + this.options.defaultFileExtension));
-			})
+				fs.rmSync(
+					path.join(
+						this.dir,
+						hash + "." + this.options.defaultFileExtension
+					)
+				);
+			});
 		} else {
-			callback(new Error("Hash could not be found in list of files."))
+			callback(new Error("Hash could not be found in list of files."));
 		}
 	}
 
 	private writeFile(hash: string, content: string): string {
-		let resultFilePath = path.join(this.dir, hash + "." + this.options.defaultFileExtension);
+		let resultFilePath = path.join(
+			this.dir,
+			hash + "." + this.options.defaultFileExtension
+		);
 		fs.writeFileSync(resultFilePath, content, "utf8");
 		return resultFilePath;
 	}
 }
 
 namespace Flake {
-	export async function getConfig(basePath: string = process.cwd()): Promise<FlakeConfigObject> {
+	export async function getConfig(
+		basePath: string = process.cwd()
+	): Promise<FlakeConfigObject> {
 		return new Promise((resolve, reject) => {
-			readConfig(args.config ? path.join(process.cwd(), path.dirname(args.config)) : basePath).then((config) => {
+			readConfig(
+				args.config
+					? path.join(process.cwd(), path.dirname(args.config))
+					: basePath
+			).then((config) => {
 				resolve(config);
 			});
 		});
 	}
 
-	export function connect(config: FlakeConfigObject, options: ConnectionOptions) {
+	export function connect(
+		config: FlakeConfigObject,
+		options: ConnectionOptions
+	) {
 		return new Connection(config, options);
 	}
 
@@ -266,11 +328,11 @@ namespace Flake {
 		let files = fs.readdirSync(resultPath);
 
 		// Get the 10 latest files (we can just sort by filename, because they resemble the capturing dates.)
-		files = files.sort((a,b) => parseInt(b)-parseInt(a));
+		files = files.sort((a, b) => parseInt(b) - parseInt(a));
 		let fileArray = [];
 		for (let i = 0; i < files.length; i++) {
 			let file = files[i];
-			let content = fs.readFileSync(path.join(resultPath, file), "utf-8")
+			let content = fs.readFileSync(path.join(resultPath, file), "utf-8");
 			fileArray.push(JSON.parse(content));
 		}
 
@@ -278,7 +340,7 @@ namespace Flake {
 			connection.submit(fileArray);
 		}
 
-		printer.print(fileArray)
+		printer.print(fileArray);
 	}
 
 	export type SubmitFunction = (content: string) => string;

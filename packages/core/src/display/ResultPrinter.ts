@@ -126,7 +126,7 @@ class ResultPrinter {
 		let text = "";
 		text += this.formatAssertions(currentResult) + "\n";
 		text += this.formatResultInfo(currentResult);
-		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
+		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin }))
 		this.showOptionsList("main")
 	}
 
@@ -146,7 +146,7 @@ class ResultPrinter {
 			text += `${TAB_SM}${c.yellow("Name")}: "${snapshot.event.name}"\n`
 			i++;
 		}
-		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
+		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin }))
 
 		const [rl, answer] = readString("  What snapshot do you want to inspect:", (str: string) => {
 			return parseInt(str, 10) >= 0 && parseInt(str, 10) < snapshots.length;
@@ -175,19 +175,16 @@ class ResultPrinter {
 			text += `${TAB_SM}${c.yellow("Value")}: ${JSON.stringify(snapshot.event.value)}\n`
 
 			// Print the contextual lines of the file.
-			let line = snapshot.event.line;
-			let lines = fs.readFileSync(obj.inputFile).toString().split("\n");
-			let followingLines = lines.slice(line - 5, line + 4);
-			for (const [lineNumber, line] of Object.entries(followingLines)) {
-				let correctedLine = parseInt(lineNumber, 10) + snapshot.event.line - 5;
-				if (correctedLine === snapshot.event.line - 1) {
+			for (const [lineNumber, line] of Object.entries(snapshot.context)) {
+				let correctedLine = parseInt(lineNumber, 10);
+				if (correctedLine === snapshot.event.line) {
 					text += `${TAB_SM}${c.red(`>> ${correctedLine + 1}|`)}${TAB_SM}${line}\n`
 				} else {
 					text += `${TAB}${correctedLine + 1}|${TAB_SM}${line}\n`;
 				}
 			}
 
-			console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin, width: 100 }))
+			console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin }))
 
 			this.showOptionsList("");
 		})
@@ -249,19 +246,17 @@ class ResultPrinter {
 			// Remove the path of the config from the filepath since we don't want to list literally the whole thing.
 			let replacedFile = file.replace(process.cwd(), "");
 			output += groupMap[name] ? `${c.blue(groupMap[name])}: ` : "";
-			output += color(sign) + " " + `${replacedFile}:${assertion.line}` + "\n";
+			output += color(sign) + " " + `${replacedFile}:${assertion.line + 1}` + "\n";
 			if (assertion.description) output += TAB + assertion.description + "\n";
 			output += `${TAB}${c.blue("content")}: ${c.yellow(assertion.content)}\n\n`
 
 			// If the assertion failed, we want to print the line where it failed and the following 5 lines;
 			if (!assertion.result) {
-				let lines = fs.readFileSync(file).toString().split("\n");
-				let followingLines = lines.slice(assertion.line - 3, assertion.line + 4);
-				for (const [lineNumber, line] of Object.entries(followingLines)) {
-					let correctedLine = parseInt(lineNumber, 10) + assertion.line - 3;
+				for (const [lineNumber, line] of Object.entries(assertion.context)) {
+					let correctedLine = parseInt(lineNumber, 10);
 
 					let strLine = (correctedLine + 1).toString().padStart(2, " ");
-					if (correctedLine === assertion.line - 1) {
+					if (correctedLine === assertion.line) {
 						output += `${TAB_SM}${c.red(`>> ${strLine}|`)}${TAB_SM}${c.red(line)}\n`
 					} else {
 						output += `${TAB}${strLine}|${TAB_SM}${line}\n`;

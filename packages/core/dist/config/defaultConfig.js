@@ -8,7 +8,8 @@ var defaultConfig = {
     },
     dir: "./",
     own: {},
-    strictCompare: false
+    strictCompare: false,
+    contextualLines: 3
 };
 export { defaultConfig };
 //# sourceMappingURL=defaultConfig.js.map

@@ -5,6 +5,7 @@ import { c } from "./display/color.js";
 import { ResultPrinter } from "./display/ResultPrinter.js";
 import { AssertionObject } from "./types/index.js";
 import boxen from "boxen";
+import { getResults } from "./utils/results.js";
 
 var allowExecution = true;
 
@@ -114,15 +115,6 @@ const args = colarg(process.argv.slice(2))
 				})
 				process.exit(0);
 			}).help().args;
-
-function getResults() {
-	let p = process.cwd() + "/.flake/results/";
-	if (fs.existsSync(p)) {
-		return fs.readdirSync(p);
-	} else {
-		throw new Error("The results directory does not exist. Can't pull results.")
-	}
-}
 
 
 export { args, allowExecution }

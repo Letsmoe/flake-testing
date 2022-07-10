@@ -34,6 +34,13 @@ export function RewriteJavaScriptFileContent(content: string) {
 
 	// Walk through the AST tree
 	walk.ancestor(ast, {
+		CallExpression(node: acorn.Node & {
+			callee: acorn.Node & {name: string},
+			arguments: acorn.Node[]
+		}) {
+			if (node.callee.type === "Identifier" && node.callee.name === "assert") {
+			}
+		},
 		LabeledStatement(
 			node: acorn.Node & {
 				label: { name: string };
@@ -294,23 +301,11 @@ export function RewriteJavaScriptFileContent(content: string) {
 	
 	function getCurrentLine(start: number) {
 		// Calculate the line number from the start of the node by looking at the characters in front of it and subtracting the length of each line until we reach the start of the node.
-		let lineNumber = 1;
-		let lineLength = 0;
-		for (let line of content.split("\n")) {
-			lineLength += line.length;
-			if (start - lineLength > 0) {
-				lineNumber++;
-			} else {
-				break;
-			}
-		}
-		return lineNumber;
+		return content.substring(0, start).split("\n").length - 1;
 	}
 	
 	function RewriteLabeledStatementBody(body: any, comments: string[]) {
 		let bodyAsString = escodegen.generate(body.expression);
-		console.log(body.expression);
-		
 		let lineNumber = getCurrentLine(body.start);
 	
 		let newBody = CallExpression("_make_assertion", [
@@ -354,9 +349,8 @@ export function RewriteJavaScriptFileContent(content: string) {
 	output += `export default function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}, _do_register_variable = (name, value) => {return value;}) {
 	/* @action didPublishCount */
 	(_set_await_assertion_count(${counter}));
-	${escodegen.generate(ast)}
-	/* @action didPublishGroups */
 	(_publish_named_groups(${JSON.stringify(namedGroups)}));
+	${escodegen.generate(ast)}
 	};`;
 
 	return output;
