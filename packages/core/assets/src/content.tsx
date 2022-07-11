@@ -196,7 +196,7 @@ function Section(props: {sectionIndex: number, data: OutputObject}) {
 					<p style={{marginBottom: 10}}>{curr.description || "No description provided."}</p>
 					{markupCode(curr.context, curr.line)}
 					<h3>Scope:</h3>
-					<pre><code>{JSON.stringify(item.snapshots.at(-1)?.scope, null, 2)}</code></pre>
+					<pre><code>{variableMarkup(item.snapshots.at(-1)?.scope)}</code></pre>
 				</div>
 			</div>)
 		} else  if (props.sectionIndex == 1) {
@@ -227,7 +227,7 @@ function Section(props: {sectionIndex: number, data: OutputObject}) {
 				{
 					item.snapshots.map((snapshot, i) => {
 						return <div class="snapshot">
-							<code style={{marginBottom: 10}}>{snapshot.event.name} = {variableMarkup(snapshot.event.value, 0, true)}</code>
+							<code style={{marginBottom: 10}}>{snapshot.event.name} = {variableMarkup(snapshot.event.value, 0, true)};</code>
 							{markupCode(snapshot.context, snapshot.event.line)}
 						</div>
 					})
@@ -238,19 +238,6 @@ function Section(props: {sectionIndex: number, data: OutputObject}) {
 	}
 }
 
-var x = [
-	"nice",
-	4, 
-	[
-		"arrays", 
-		"in", 
-		1, 
-		{
-			"object": true
-		}
-	]
-]
-
 function variableMarkup(value: any, indent: number = 0, inline: boolean = false) {
 	const style = {
 		marginLeft: indent * 10
@@ -258,12 +245,18 @@ function variableMarkup(value: any, indent: number = 0, inline: boolean = false)
 
 	if (inline) style["display"] = "inline";
 
+	let objectRef = applyRef();
+	let fold = <span class="code fold" onclick={() => {
+		objectRef.current.classList.toggle("folded");
+	}}></span>
+
 	if (typeof value === "string") {
 		return <span class="code string">"{value}"</span>
 	} else if (typeof value === "number") {
 		return <span class="code number">{value}</span>
 	} else if (typeof value === "object" && Array.isArray(value)) {
-		return <div style={style} class="code array">
+		return <div style={style} class="code array" ref={objectRef}>
+			{fold}
 			<span class="code open-bracket"></span>
 			{value.map(x => {
 				return variableMarkup(x, indent + 1)
@@ -271,7 +264,8 @@ function variableMarkup(value: any, indent: number = 0, inline: boolean = false)
 			<span class="code closing-bracket"></span>
 		</div>
 	} else if (typeof value === "object") {
-		return <div style={style} class="code object">
+		return <div style={style} class="code object" ref={objectRef}>
+			{fold}
 			<span class="code open-brace"></span>
 			{
 				Object.entries(value).map(([key, val]) => {

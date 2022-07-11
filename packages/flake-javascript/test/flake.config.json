@@ -3,5 +3,7 @@
 	"watchOptions": {
 		"poll": 100
 	},
-	"dir": "./"
+	"dir": "./",
+	"nodeDir": "../node_modules/",
+	"devServer": true
 }

@@ -1,6 +1,6 @@
 <center>
 	<img src="./assets/logo.svg">
-	<p>Flake.js is a Node test runner that let's you develop in any language with confidence.</p>
+	<p>Flake.js is a test runner that let's you develop in any language with confidence.</p>
 </center>
 
 
@@ -19,12 +19,12 @@ If you would like to become a part of our community consider reading this articl
 - Support for many major languages
 - One API for everything
 - Simple debugging with scope snapshots
+- JSDoc Annotations
 
 
 Main Menu (JS File) | Snapshots Page (JS File)
 ---------|----------
 ![A demo picture showing the front most overlay of flake](./assets/demo-menu.png) | ![A demo picture showing the snapshot overview of flake](./assets/demo-snapshots.png)
-
 
 
 

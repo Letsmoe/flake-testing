@@ -315,14 +315,40 @@ pre > code .line-number {
 .code.string {
   color: #98971a;
 }
+.code.key {
+  color: #076678;
+}
 .code.key::after {
   color: #7c6f64;
   content: ":";
 }
-.code.array {
-  display: block;
+.code.fold {
+  width: 0;
+  height: 0;
+  border-left: 4px solid transparent;
+  border-right: 4px solid transparent;
+  border-top: 6px solid rgba(0, 0, 0, 0.4);
+  display: inline-block;
+  margin-right: 4px;
+  cursor: pointer;
 }
-.code.array > *:not(.open-bracket, .closing-bracket, :nth-last-child(2))::after {
+.code.folded .fold {
+  border-top: none;
+  border-bottom: 6px solid rgba(0, 0, 0, 0.4);
+}
+.code.folded .closing-bracket:last-of-type::before, .code.folded .closing-brace:last-of-type::before {
+  content: "...";
+}
+.code.folded .open-brace, .code.folded .closing-brace {
+  display: inline;
+}
+.code.folded > *:not(.fold:first-of-type, .open-bracket:not(:first-of-type), .closing-bracket:last-of-type, .open-brace:not(:first-of-type), .closing-brace:last-of-type) {
+  display: none;
+}
+.code.array {
+  display: inline;
+}
+.code.array > *:not(.open-bracket, .closing-bracket, :nth-last-child(2), .fold)::after {
   content: ",";
   color: #7c6f64;
 }
@@ -343,13 +369,13 @@ pre > code .line-number {
   color: #b16286;
 }
 .code.open-brace {
-  display: block;
+  display: inline;
 }
 .code.open-brace::after {
   content: "{";
 }
 .code.closing-brace {
-  display: block;
+  display: inline;
 }
 .code.closing-brace::after {
   content: "}";

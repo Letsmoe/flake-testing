@@ -13,8 +13,10 @@
 	"license": "MIT",
 	"devDependencies": {
 		"@types/escodegen": "^0.0.7",
+		"@types/mime-types": "^2.1.1",
 		"@types/node": "^17.0.23",
-		"@types/prismjs": "^1.26.0"
+		"@types/prismjs": "^1.26.0",
+		"@types/ws": "^8.5.3"
 	},
 	"dependencies": {
 		"@flake-universal/core": "file:../core",
@@ -22,7 +24,9 @@
 		"acorn-walk": "^8.2.0",
 		"colarg": "^1.1.4",
 		"escodegen": "^2.0.0",
-		"jsdom": "^19.0.0"
+		"jsdom": "^19.0.0",
+		"mime-types": "^2.1.35",
+		"node-fetch": "^3.2.6"
 	},
 	"bin": {
 		"flake": "./lib/executeFile.js"

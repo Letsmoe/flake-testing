@@ -203,7 +203,7 @@ function Section(props) {
                     markupCode(curr_1.context, curr_1.line),
                     Snowblind.make("h3", null, "Scope:"),
                     Snowblind.make("pre", null,
-                        Snowblind.make("code", null, JSON.stringify((_a = item.snapshots.at(-1)) === null || _a === void 0 ? void 0 : _a.scope, null, 2))))));
+                        Snowblind.make("code", null, variableMarkup((_a = item.snapshots.at(-1)) === null || _a === void 0 ? void 0 : _a.scope))))));
         }
         else if (props.sectionIndex == 1) {
             return Snowblind.make(Snowblind.Fragment, null,
@@ -227,25 +227,14 @@ function Section(props) {
                     Snowblind.make("code", { style: { marginBottom: 10 } },
                         snapshot.event.name,
                         " = ",
-                        variableMarkup(snapshot.event.value, 0, true)),
+                        variableMarkup(snapshot.event.value, 0, true),
+                        ";"),
                     markupCode(snapshot.context, snapshot.event.line));
             }));
         }
         return Snowblind.make(Snowblind.Fragment, null);
     };
 }
-var x = [
-    "nice",
-    4,
-    [
-        "arrays",
-        "in",
-        1,
-        {
-            "object": true
-        }
-    ]
-];
 function variableMarkup(value, indent, inline) {
     if (indent === void 0) { indent = 0; }
     if (inline === void 0) { inline = false; }
@@ -254,6 +243,10 @@ function variableMarkup(value, indent, inline) {
     };
     if (inline)
         style["display"] = "inline";
+    var objectRef = applyRef();
+    var fold = Snowblind.make("span", { class: "code fold", onclick: function () {
+            objectRef.current.classList.toggle("folded");
+        } });
     if (typeof value === "string") {
         return Snowblind.make("span", { class: "code string" },
             "\"",
@@ -264,7 +257,8 @@ function variableMarkup(value, indent, inline) {
         return Snowblind.make("span", { class: "code number" }, value);
     }
     else if (typeof value === "object" && Array.isArray(value)) {
-        return Snowblind.make("div", { style: style, class: "code array" },
+        return Snowblind.make("div", { style: style, class: "code array", ref: objectRef },
+            fold,
             Snowblind.make("span", { class: "code open-bracket" }),
             value.map(function (x) {
                 return variableMarkup(x, indent + 1);
@@ -272,7 +266,8 @@ function variableMarkup(value, indent, inline) {
             Snowblind.make("span", { class: "code closing-bracket" }));
     }
     else if (typeof value === "object") {
-        return Snowblind.make("div", { style: style, class: "code object" },
+        return Snowblind.make("div", { style: style, class: "code object", ref: objectRef },
+            fold,
             Snowblind.make("span", { class: "code open-brace" }),
             Object.entries(value).map(function (_a) {
                 var key = _a[0], val = _a[1];

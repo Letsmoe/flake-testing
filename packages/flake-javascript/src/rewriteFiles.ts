@@ -106,11 +106,14 @@ export function RewriteJavaScriptFileContent(content: string) {
 	
 				delete node.label;
 				delete node.body;
-			} else if (["afterAll", "beforeAll"].indexOf(name) !== -1) {
+			} else if (["afterAll", "beforeAll", "snap"].indexOf(name) !== -1) {
 				node.type = "ExpressionStatement";
 				node.expression = CallExpression("_register_action", [
 					Literal(name),
 					node.body.expression,
+					Literal(getCurrentLine(node.start)),
+					Literal(node.start),
+					Literal(node.end)
 				]);
 				delete node.label;
 				delete node.body;
@@ -346,7 +349,7 @@ export function RewriteJavaScriptFileContent(content: string) {
 	});
 	
 	output += "\n";
-	output += `export default function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}, _do_register_variable = (name, value) => {return value;}) {
+	output += `export default async function(_make_assertion = () => {}, _publish_named_groups = () => {}, _set_await_assertion_count = () => {}, _import_module = () => {}, _register_action = () => {}, _do_register_variable = (name, value) => {return value;}) {
 	/* @action didPublishCount */
 	(_set_await_assertion_count(${counter}));
 	(_publish_named_groups(${JSON.stringify(namedGroups)}));
