@@ -1,0 +1,9 @@
+{
+	"watch": true,
+	"watchOptions": {
+		"poll": 100
+	},
+	"dir": "./",
+	"nodeDir": "../node_modules/",
+	"devServer": true
+}

@@ -1,12 +1,12 @@
 {
 	"compilerOptions": {
-		"target": "es2015",
+		"target": "es2020",
 		"moduleResolution": "node",
 		"declaration": true,
 		"declarationDir": "../dist/",
 		"declarationMap": true,
-		"outDir": "../lib/",
-		"module": "es2020",
+		"outDir": "../dist/",
+		"module": "es2022",
 		"allowSyntheticDefaultImports": true,
 		"strict": false
 	},

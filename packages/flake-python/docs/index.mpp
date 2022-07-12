@@ -1,4 +1,4 @@
-# Testing with flake-javascript
+# Testing with flake-python
 Unlike other testing frameworks that use default functions to execute a piece of code, flake-js uses the standard [label](https://developer.mozilla.org/en-US/docs/Web/JavaScript/Reference/Statements/label) that is implemented into JavaScript by default.
 This means that any code written with flake-js in mind will be much smaller and less cluttered than what you would have to write with other utilities.
 

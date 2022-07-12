@@ -1,7 +1,7 @@
-<center>
+<div align="center">
 	<img src="./assets/logo.svg">
 	<p>Flake.js is a test runner that let's you develop in any language with confidence.</p>
-</center>
+</div>
 
 {%
 table = toc("Table Of Contents");

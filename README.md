@@ -1,7 +1,7 @@
-<center>
+<div align="center">
 	<img src="./assets/logo.svg">
 	<p>Flake.js is a test runner that let's you develop in any language with confidence.</p>
-</center>
+</div>
 
 
 <details><summary>Table Of Contents</summary><ol><li><a href="#contributing">Contributing</a></li><li><a href="#why_flake_">Why Flake?</a></li><li><a href="#usage">Usage</a></li></ol></details>
