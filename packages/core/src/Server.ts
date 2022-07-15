@@ -6,9 +6,13 @@ import { __dirname } from "./dirname.js"
 
 export default class Server {
 	private instance: http.Server;
-	constructor(port: number = 8086) {
+	constructor(port: number = 8086, private socketServerPort: number = 8088) {
 		this.instance = http.createServer(this.requestListener.bind(this));
 		this.instance.listen(port);
+	}
+
+	public close(): void {
+		this.instance.close()
 	}
 
 	public requestListener(req: http.IncomingMessage, res: http.ServerResponse) {
@@ -17,7 +21,8 @@ export default class Server {
 			let type = mime.lookup(p) as string
 			res.setHeader("Content-Type", type);
 			res.writeHead(200);
-			let content = fs.readFileSync(p);
+			let content = fs.readFileSync(p).toString();
+			content = content.replace(/ws:\/\/localhost:8088/g, "ws://localhost:" + this.socketServerPort)
 			res.end(content);
 		} else {
 			res.setHeader("Content-Type", "text/html");

@@ -107,11 +107,16 @@ var ResultPrinter = /** @class */ (function () {
         this.margin = 0.5;
         console.clear();
         console.log(this.formatHeader());
-        var text = "";
-        text += this.formatAssertions(currentResult) + "\n";
-        text += this.formatResultInfo(currentResult);
-        console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin }));
-        this.showOptionsList("main");
+        if (currentResult) {
+            var text = "";
+            text += this.formatAssertions(currentResult) + "\n";
+            text += this.formatResultInfo(currentResult);
+            console.log(boxen(text, { title: "Page ".concat(this.currentIndex + 1, " of ").concat(this.result.length), titleAlignment: "left", padding: { top: 1, left: 1.5, right: 1.5, bottom: 1 }, margin: this.margin }));
+            this.showOptionsList("main");
+        }
+        else {
+            console.log("There are no results to display, try running again.");
+        }
     };
     ResultPrinter.prototype.formatSnapshots = function (obj) {
         var _this = this;

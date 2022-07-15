@@ -4,8 +4,10 @@ export default class WSServer {
     private connections;
     private lastPacket;
     private listeners;
+    root: string;
     connectionCount: number;
     constructor(port?: number);
+    close(): void;
     onStateChange(): void;
     private onReceiveMessage;
     onMessage(action: string, callback: Function): void;

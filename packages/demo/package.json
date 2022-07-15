@@ -1,0 +1,19 @@
+{
+	"name": "@snowblind/demo",
+	"version": "1.0.0",
+	"description": "",
+	"main": "index.js",
+	"type": "module",
+	"directories": {
+		"test": "test"
+	},
+	"scripts": {
+		"test": "flake -p=flake.config.json -w=false"
+	},
+	"author": "",
+	"license": "ISC",
+	"dependencies": {
+		"flake-javascript": "^1.0.3",
+		"node-fetch": "^3.2.8"
+	}
+}

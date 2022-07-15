@@ -1,47 +1,240 @@
 {
-	"required": [],
-	"$schema": "http://json-schema.org/draft-07/schema#",
-	"type": "object",
-	"properties": {
-		"exclude": {
-			"type": "array",
-			"items": {
-				"type": "string"
-			},
-			"default": [],
-			"description": "A list of regular expressions that will be ignored when searching for files."
-		},
-		"watch": {
-			"type": "boolean",
-			"default": false,
-			"description": "Watch for changes to the source files and restart the tests once a change is detected."
-		},
-		"watchOptions": {
-			"properties": {
-				"poll": {
-					"type": "number",
-					"default": 500,
-					"description": "The time in milliseconds to wait between checking the watched folder for file changes."
-				},
-				"aggregateTimeout": {
-					"type": "number",
-					"default": 1000,
-					"description": "The time in milliseconds to wait for more changes before emitting a change event."
-				},
-				"ignored": {
-					"type": "array",
-					"items": {
-						"type": "string"
-					},
-					"default": [],
-					"description": "A list of regular expressions for files to ignore when watching for changes."
-				}
-			}
-		},
-		"dir": {
-			"type": "string",
-			"description": "The directory to search for test files.",
-			"default": "./"
-		}
-	}
+    "type": "object",
+    "additionalProperties": {},
+    "properties": {
+        "exclude": {
+            "description": "A list of regular expressions that will be ignored when searching for files.",
+            "default": "[\".*node_modules.*\", \".*\\.flake\", \"^\\..*\"]",
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "watch": {
+            "description": "Watch for changes to the source files and restart the tests once a change is detected.",
+            "default": false,
+            "type": "boolean"
+        },
+        "watchOptions": {
+            "type": "object",
+            "properties": {
+                "poll": {
+                    "description": "The time in milliseconds to wait between checking the watched folder for file changes.",
+                    "default": 500,
+                    "type": "number"
+                },
+                "aggregateTimeout": {
+                    "description": "The time in milliseconds to wait for more changes before emitting a change event.",
+                    "default": 100,
+                    "type": "number"
+                }
+            }
+        },
+        "dir": {
+            "description": "The directory to search for test files.",
+            "default": "./",
+            "type": "string"
+        },
+        "deepSearch": {
+            "description": "Whether to deeply search for test files in the current directory,\nwhen this option is enabled files in subdirectories will be included as well.",
+            "default": "true;",
+            "type": "boolean"
+        },
+        "strictCompare": {
+            "description": "Whether to compare to truthiness or strict \"true\"",
+            "default": "true;",
+            "type": "boolean"
+        },
+        "contextualLines": {
+            "description": "How many lines should be visible around an error to contextualize the error message.",
+            "default": 3,
+            "type": "number"
+        },
+        "rules": {
+            "description": "A list of rules to follow while searching for files.",
+            "type": "array",
+            "items": {
+                "$ref": "#/definitions/Rule"
+            }
+        },
+        "stats": {
+            "description": "An object with information about what to display when outputting to console, may also be a string specifying the preset to use.",
+            "default": "warnings",
+            "anyOf": [
+                {
+                    "$ref": "#/definitions/Stats"
+                },
+                {
+                    "enum": [
+                        "errors-only",
+                        "verbose",
+                        "warnings"
+                    ],
+                    "type": "string"
+                }
+            ]
+        },
+        "devServer": {
+            "description": "An object defining properties about the development server.",
+            "$ref": "#/definitions/DevServerOptions"
+        },
+        "plugins": {
+            "description": "A list of plugins that can be used to extend the default behavior of flake,\neach plugin will be run in a worker process and can communicate via a pipe with the main process.\n\nA plugin will be passed information about the currently used config, you can read more about that [here](https://continuum-ai.de/docs/flake/config/plugins).\nEach plugin is included via a package resolvable by node or a file path.",
+            "examples": [
+                [
+                    "flake-plugin",
+                    "/home/user/documents/projects/plugin/index.js"
+                ]
+            ],
+            "default": [],
+            "type": "array",
+            "items": {
+                "type": "string"
+            }
+        },
+        "performanceCapturing": {
+            "description": "An output option that captures performance of the current process, analyzing which files most time was spent on.\nCan be turned on or off, is most likely only useful while debugging flake or a plugin for it.",
+            "default": false,
+            "type": "boolean"
+        }
+    },
+    "required": [
+        "strictCompare"
+    ],
+    "definitions": {
+        "Rule": {
+            "type": "object",
+            "properties": {
+                "test": {
+                    "type": "string"
+                },
+                "use": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "loader": {
+                                "type": "string"
+                            },
+                            "options": {
+                                "type": "object",
+                                "additionalProperties": {}
+                            }
+                        }
+                    }
+                },
+                "commands": {
+                    "type": "array",
+                    "items": {
+                        "$ref": "#/definitions/Command"
+                    }
+                }
+            },
+            "required": [
+                "test"
+            ]
+        },
+        "Command": {
+            "type": "object",
+            "properties": {
+                "exec": {
+                    "type": "string"
+                },
+                "module": {
+                    "type": "object",
+                    "properties": {
+                        "name": {
+                            "type": "string"
+                        },
+                        "import": {
+                            "type": "string"
+                        }
+                    },
+                    "required": [
+                        "import",
+                        "name"
+                    ]
+                },
+                "options": {
+                    "type": "object",
+                    "additionalProperties": {}
+                }
+            }
+        },
+        "Stats": {
+            "type": "object",
+            "properties": {
+                "preset": {
+                    "enum": [
+                        "errors-only",
+                        "verbose",
+                        "warnings"
+                    ],
+                    "type": "string"
+                },
+                "outputPath": {
+                    "description": "Whether to include the path of the currently executing script in the output.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "rule": {
+                    "description": "Whether to include the name of the currently executing rule in the output, this includes:\n\t- command name\n\t- loader path",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "warnings": {
+                    "description": "Whether to include warnings in the output.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "errors": {
+                    "description": "Whether to include error messages in the output",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "errorStack": {
+                    "description": "Whether to include the stack trace of errors in the output.",
+                    "default": false,
+                    "type": "boolean"
+                },
+                "version": {
+                    "description": "Whether to include the current version of flake in the output.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "loaders": {
+                    "description": "Whether to include all defined loaders in the header.",
+                    "default": true,
+                    "type": "boolean"
+                },
+                "hash": {
+                    "description": "Whether to include the build hash in the output",
+                    "default": false,
+                    "type": "boolean"
+                }
+            }
+        },
+        "DevServerOptions": {
+            "type": "object",
+            "properties": {
+                "api": {
+                    "description": "An object containing information about how to accept requests from another sender than the process itself.\nThis might be useful for using a backend API of another service with flake and might also be helpful when debugging an application.",
+                    "type": "object",
+                    "properties": {
+                        "port": {
+                            "description": "The port used by the API service, a separate WebSocket will be set up to allow for quicker communication between connected sockets,\nit will always be on the next available port,\ninformation about it will be transmitted in the static server response.",
+                            "default": 8086,
+                            "type": "number"
+                        }
+                    }
+                },
+                "port": {
+                    "description": "A server will be opened to allow for looking at results with a GUI, the port specifies where it will be opened on the \"localhost\".",
+                    "default": 4004,
+                    "type": "number"
+                }
+            }
+        }
+    },
+    "$schema": "http://json-schema.org/draft-07/schema#"
 }

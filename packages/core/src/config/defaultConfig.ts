@@ -1,4 +1,4 @@
-import { FlakeConfigObject } from "./config.type"
+import { FlakeConfigObject } from "./config.type.js"
 
 const defaultConfig: FlakeConfigObject = {
 	exclude: [".*node_modules.*"],

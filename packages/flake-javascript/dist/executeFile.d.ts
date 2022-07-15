@@ -1,3 +1,3 @@
 #!/usr/bin/env node
-export {};
+export default function loader(): Promise<unknown>;
 //# sourceMappingURL=executeFile.d.ts.map

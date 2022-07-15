@@ -123,11 +123,15 @@ class ResultPrinter {
 		this.margin = 0.5;
 		console.clear();
 		console.log(this.formatHeader());
-		let text = "";
-		text += this.formatAssertions(currentResult) + "\n";
-		text += this.formatResultInfo(currentResult);
-		console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin }))
-		this.showOptionsList("main")
+		if (currentResult) {
+			let text = "";
+			text += this.formatAssertions(currentResult) + "\n";
+			text += this.formatResultInfo(currentResult);
+			console.log(boxen(text, { title: `Page ${this.currentIndex + 1} of ${this.result.length}`, titleAlignment: "left", padding: {top: 1, left: 1.5, right: 1.5, bottom: 1}, margin: this.margin }))
+			this.showOptionsList("main")
+		} else {
+			console.log("There are no results to display, try running again.")
+		}
 	}
 
 	private formatSnapshots(obj: OutputObject) {

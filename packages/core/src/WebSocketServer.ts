@@ -6,11 +6,16 @@ export default class WSServer {
 	private connections: Map<Symbol, ws.WebSocket> = new Map<Symbol, ws.WebSocket>();
 	private lastPacket: OutputObject[] = [];
 	private listeners: {[key: string]: Function[]} = {};
+	public root: string = "";
 	public connectionCount: number = 0;
 
 	constructor(port: number = 8088) {
 		this.instance = new ws.WebSocketServer({ port });
 		this.instance.on("connection", this.connectionReceiver.bind(this));
+	}
+
+	public close() {
+		this.instance.close()
 	}
 
 	public onStateChange() {}
@@ -63,7 +68,10 @@ export default class WSServer {
 		let data = JSON.stringify({
 			type: "POST",
 			action: "DISPLAY_RESULT",
-			data: obj
+			data: {
+				results: obj,
+				root: this.root
+			}
 		});
 		this.connections.forEach(connection => {
 			connection.send(data);

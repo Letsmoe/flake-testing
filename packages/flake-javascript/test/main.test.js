@@ -1,3 +1,5 @@
+import { assert, snap } from "flake-javascript";
+
 async function main() {
 	return new Promise(function (resolve, reject) {
 		setTimeout(function () {
@@ -8,4 +10,4 @@ async function main() {
 
 let result = await main();
 
-$: result == 42
+assert(result == 42)

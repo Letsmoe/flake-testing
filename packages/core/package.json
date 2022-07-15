@@ -3,7 +3,7 @@
 	"version": "1.0.0",
 	"type": "module",
 	"description": "Core package of flake-universal.",
-	"main": "./dist/flake.js",
+	"main": "./dist/index.js",
 	"types": "./dist/index.d.ts",
 	"scripts": {
 		"test": "flake --config=test/flake.config.json --dir=test/",
@@ -14,19 +14,25 @@
 		"unit-tests",
 		"end-to-end-testing"
 	],
+	"bin": {
+		"flake": "./dist/cli/index.js"
+	},
 	"author": "letsmoe",
 	"license": "MIT",
 	"dependencies": {
-		"@snowblind/core": "file:../../../snowblind/src/@snowblind-core",
+		"@flake-universal/javascript": "file:../flake-javascript",
+		"@flake-universal/python": "file:../flake-python",
+		"@snowblind/core": "^2.1.6",
 		"boxen": "^7.0.0",
 		"chokidar": "^3.5.3",
-		"colarg": "^1.1.4",
-		"crypto-hash": "^2.0.1",
+		"colarg": "^2.0.1",
+		"get-port": "^6.1.2",
 		"js-yaml": "^4.1.0",
 		"jsonschema": "^1.4.1",
 		"mime-types": "^2.1.35",
 		"open": "^8.4.0",
 		"supports-color": "^9.2.2",
+		"typescript-json-schema": "^0.54.0",
 		"ws": "^8.8.0"
 	},
 	"devDependencies": {

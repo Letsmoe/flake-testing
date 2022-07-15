@@ -8,7 +8,7 @@
 body > div {
 	background-color: #fafafa;
 	display: grid;
-	grid-template-columns: 300px 1fr;
+	grid-template-columns: 400px 1fr;
 	grid-template-rows: auto;
 	grid-template-areas: "sidebar main";
 	height: 100vh;
@@ -114,6 +114,47 @@ button {
 	height: 100vh;
 	border-right: 1px solid #ddd;
 	padding: 10px;
+
+	& > * {
+		width: 100%;
+	}
+}
+
+.tree {
+	margin-top: 10px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+
+	& p {
+		font-size: 16px;
+		padding: 4px;
+		margin-left: 10px;
+	}
+
+	& a {
+		font-weight: 600;
+		padding: 4px;
+
+		&.selected {
+			background-color: #ddd;
+		}
+
+		&.new::before {
+			width: 8px;
+			height: 8px;
+			position: relative;
+			margin-right: 10px;
+			background-color: #3E5BF3;
+			border-radius: 50%;
+			content: "";
+		}
+	}
+}
+
+.file-icon {
+	width: 18px;
+	height: 18px;
+	margin-right: 4px;
 }
 
 .item-select {

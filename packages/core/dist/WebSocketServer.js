@@ -5,10 +5,14 @@ var WSServer = /** @class */ (function () {
         this.connections = new Map();
         this.lastPacket = [];
         this.listeners = {};
+        this.root = "";
         this.connectionCount = 0;
         this.instance = new ws.WebSocketServer({ port: port });
         this.instance.on("connection", this.connectionReceiver.bind(this));
     }
+    WSServer.prototype.close = function () {
+        this.instance.close();
+    };
     WSServer.prototype.onStateChange = function () { };
     WSServer.prototype.onReceiveMessage = function (raw) {
         var data = JSON.parse(raw.toString());
@@ -52,7 +56,10 @@ var WSServer = /** @class */ (function () {
         var data = JSON.stringify({
             type: "POST",
             action: "DISPLAY_RESULT",
-            data: obj
+            data: {
+                results: obj,
+                root: this.root
+            }
         });
         this.connections.forEach(function (connection) {
             connection.send(data);

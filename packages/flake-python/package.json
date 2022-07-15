@@ -1,11 +1,10 @@
 {
-	"name": "@flake-universal/core",
+	"name": "@flake-universal/python",
 	"version": "1.0.0",
 	"type": "module",
 	"description": "A full-on testing library for end-to-end and unit tests in any language.",
-	"main": "./lib/flake.js",
+	"main": "./dist/index.js",
 	"scripts": {
-		"test": "node ./lib/executeFile.js -p ./test/flake.config.json",
 		"build": "webpack --config=webpack.config.cjs",
 		"build:watch": "webpack --config=webpack.config.cjs --watch"
 	},
@@ -26,9 +25,7 @@
 		"escodegen": "^2.0.0",
 		"jsdom": "^19.0.0",
 		"mime-types": "^2.1.35",
-		"node-fetch": "^3.2.6"
-	},
-	"bin": {
-		"flake-py": "./lib/executeFile.js"
+		"node-fetch": "^3.2.6",
+		"ws": "^8.8.0"
 	}
 }

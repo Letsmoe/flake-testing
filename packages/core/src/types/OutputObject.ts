@@ -4,8 +4,6 @@ import { SnapshotObject } from "./SnapshotObject";
 
 export type OutputObject = {
 	inputFile: string;
-	testFile: string;
-	identifier: string;
 	status?: boolean;
 	result: ResultObject;
 	imports: ImportObject[];

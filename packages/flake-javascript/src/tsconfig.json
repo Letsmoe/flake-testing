@@ -5,7 +5,7 @@
 		"declaration": true,
 		"declarationDir": "../dist/",
 		"declarationMap": true,
-		"outDir": "../lib/",
+		"outDir": "../dist/",
 		"module": "es2022",
 		"allowSyntheticDefaultImports": true,
 		"strict": false

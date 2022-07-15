@@ -5,5 +5,5 @@
 	},
 	"dir": "./",
 	"nodeDir": "../node_modules/",
-	"devServer": true
+	"useDefaultLoaders": true
 }
