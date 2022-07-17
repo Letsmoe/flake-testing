@@ -11,8 +11,8 @@ import { FlakeConfigObject } from "./config.type.js";
  * if no file matched the pattern, the default config will be returned.
  * @date 6/8/2022 - 7:41:19 PM
  *
- * @param {string} dirPath The path to the directory that contains the config file.
+ * @param {string} filePath The path to the file that shall be used as config.
  * @returns {FlakeConfigObject} A config object.
  */
-declare function readConfig(dirPath: string): FlakeConfigObject;
+declare function readConfig(filePath: string): FlakeConfigObject;
 export { readConfig };

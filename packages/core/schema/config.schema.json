@@ -37,12 +37,12 @@
         },
         "deepSearch": {
             "description": "Whether to deeply search for test files in the current directory,\nwhen this option is enabled files in subdirectories will be included as well.",
-            "default": "true;",
+            "default": true,
             "type": "boolean"
         },
         "strictCompare": {
             "description": "Whether to compare to truthiness or strict \"true\"",
-            "default": "true;",
+            "default": false,
             "type": "boolean"
         },
         "contextualLines": {
@@ -99,7 +99,7 @@
         }
     },
     "required": [
-        "strictCompare"
+        "dir"
     ],
     "definitions": {
         "Rule": {

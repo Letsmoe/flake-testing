@@ -39,34 +39,27 @@ import * as fs from "fs";
 import { ResultPrinter } from "../display/ResultPrinter.js";
 import { error, Properties, Reasons } from "../shared.js";
 import * as path from "path";
-import { AttachDirectoryWatcher, ScanDirectory } from "../DirectoryWatcher.js";
+import { AttachDirectoryWatcher, searchDirectory, } from "../DirectoryWatcher.js";
 import { getUtils } from "../ModuleUtils.js";
-import getPort from "get-port";
 import Server from "../Server.js";
 import WebSocketServer from "../WebSocketServer.js";
 import { spawn } from "node:child_process";
 import { args } from "./Args.js";
 import { DEFAULT_LOADERS } from "../Loaders.js";
+import { readConfig } from "../config/readConfig.js";
 var configPath = path.join(process.cwd(), args.config);
 var configFolder = path.dirname(configPath);
 // Read the config file
-var config = JSON.parse(fs.readFileSync(configPath).toString());
-config.exclude = config.exclude || [];
+var config = readConfig(configPath);
 config.exclude = config.exclude.concat([".*\\.flake.*"]);
 // The directory containing all test files, we can just use the config directory since it points to the dir folder.
 var dir = path.join(configFolder, config.dir);
-(function () {
-    var _this = this;
-    // Get a list of all rules we might want to follow.
-    var rules = this.config.rules || [];
-    if (this.config.useDefaultLoaders) {
-        rules.push.apply(rules, DEFAULT_LOADERS);
-    }
+function createResultFolder(root) {
     /**
      * Create all folders for storing results
      */
     var FOLDER_NAME = ".flake";
-    var TEMP_FOLDER = path.join(dir, FOLDER_NAME);
+    var TEMP_FOLDER = path.join(root, FOLDER_NAME);
     // Create the folder if it doesn't exist already.
     if (!fs.existsSync(TEMP_FOLDER)) {
         fs.mkdirSync(TEMP_FOLDER);
@@ -90,17 +83,27 @@ var dir = path.join(configFolder, config.dir);
         fs.mkdirSync(RESULT_FOLDER);
     }
     fs.mkdirSync(CACHE_FOLDER);
+}
+(function () {
+    var _this = this;
+    // Get a list of all rules we might want to follow.
+    var rules = this.config.rules || [];
+    if (this.config.useDefaultLoaders) {
+        rules.push.apply(rules, DEFAULT_LOADERS);
+    }
+    createResultFolder(this.dir);
     /**
      * Check whether the directory should be watched, if the CLI option is true we just ignore the config.
      */
-    var watch = args.watch === false ? false : (this.config.watch || args.watch);
+    var watch = args.watch === false ? false : this.config.watch || args.watch;
     if (watch === true) {
         // Watch the directory for changes (deep).
         AttachDirectoryWatcher(this.dir, function (eventType, file) { return __awaiter(_this, void 0, void 0, function () {
             var _this = this;
             return __generator(this, function (_a) {
                 if (eventType === "add" || eventType === "change") {
-                    SubmitFileChange(file, file.replace(this.dir, ""), rules).then(function (result) {
+                    SubmitFileChange(file, file.replace(this.dir, ""), rules)
+                        .then(function (result) {
                         WriteResult(_this.dir, result);
                         submit(getResultArray());
                     })
@@ -111,8 +114,26 @@ var dir = path.join(configFolder, config.dir);
         }); });
     }
     else {
+        runAllFiles();
+    }
+    function runAllFiles() {
+        var _this = this;
         // Loop through all files in the directory (maybe deeply) and submit all files once.
-        ScanDirectory(this.dir, this.dir).forEach(function (_a) {
+        var depth = 1;
+        if (this.config.deepSearch) {
+            /**
+             * If the config setting "deepSearch" is true we want to scan all subdirectories as well,
+             * the depth must be infinite since we don't know how many subdirectories we're expecting.
+             */
+            depth = Infinity;
+        }
+        /**
+         * Since we want to retrieve the absolute and relative file paths to our root directory we can simply map the absolute paths to an array of absolute and relative,
+         * a relative path just means subtracting the root from the absolute path.
+         */
+        searchDirectory(this.dir, depth)
+            .map(function (x) { return [x, x.replace(_this.dir, "")]; })
+            .forEach(function (_a) {
             var absFile = _a[0], file = _a[1];
             return __awaiter(_this, void 0, void 0, function () {
                 var _this = this;
@@ -162,77 +183,61 @@ var dir = path.join(configFolder, config.dir);
         var WebServerPort, WebSocketServerPort, setWsHeader;
         var _this = this;
         return __generator(this, function (_a) {
-            switch (_a.label) {
-                case 0: return [4 /*yield*/, getPort()];
-                case 1:
-                    WebServerPort = _a.sent();
-                    return [4 /*yield*/, getPort()];
-                case 2:
-                    WebSocketServerPort = _a.sent();
-                    this.server = new Server(WebServerPort, WebSocketServerPort);
-                    this.wsServer = new WebSocketServer(WebSocketServerPort);
-                    this.wsServer.root = this.dir;
-                    //do something when app is closing
-                    process.on('exit', exitHandler.bind(this, { cleanup: true }));
-                    //catches ctrl+c event
-                    process.on('SIGINT', exitHandler.bind(this, { exit: true }));
-                    // catches "kill pid" (for example: nodemon restart)
-                    process.on('SIGUSR1', exitHandler.bind(this, { exit: true }));
-                    process.on('SIGUSR2', exitHandler.bind(this, { exit: true }));
-                    //catches uncaught exceptions
-                    process.on('uncaughtException', exitHandler.bind(this, { exit: true }));
-                    this.wsServer.onMessage("REMOVE_ALL", function () {
-                        var files = fs.readdirSync(path.join(dir, ".flake", "results"));
-                        files.forEach(function (file) {
-                            var p = path.join(dir, "/.flake/results/", file);
-                            if (fs.existsSync(p)) {
-                                fs.rmSync(p);
-                            }
-                        });
-                        submit([]);
-                    });
-                    this.wsServer.onMessage("RUN_ALL", function () {
-                        ScanDirectory(_this.dir, _this.dir).forEach(function (_a) {
-                            var absFile = _a[0], file = _a[1];
-                            return __awaiter(_this, void 0, void 0, function () {
-                                var _this = this;
-                                return __generator(this, function (_b) {
-                                    SubmitFileChange(absFile, file, rules)
-                                        .then(function (result) {
-                                        WriteResult(_this.dir, result);
-                                        submit(getResultArray());
-                                    })
-                                        .catch(function () { });
-                                    return [2 /*return*/];
-                                });
-                            });
-                        });
-                    });
-                    this.wsServer.onMessage("OPEN_FILE", function (data) {
-                        // Check if vscode is installed, then we can open at the specified line
-                        if (data.hasOwnProperty("line") && data.hasOwnProperty("column")) {
-                            var vsVersion = spawn("code", ["--version"]);
-                            vsVersion.on("close", function (code) {
-                                if (code === 0) {
-                                    // VSCode is installed, open the file with that.
-                                    spawn("code", ["--goto", "".concat(data.file, ":").concat(data.line, ":").concat(data.column)]);
-                                }
-                                else {
-                                    open(data.file);
-                                }
-                            });
+            WebServerPort = this.config.devServer.port;
+            WebSocketServerPort = this.config.devServer.api.port;
+            this.server = new Server(WebServerPort, WebSocketServerPort);
+            this.wsServer = new WebSocketServer(WebSocketServerPort);
+            this.wsServer.root = this.dir;
+            //do something when app is closing
+            process.on("exit", exitHandler.bind(this, { cleanup: true }));
+            //catches ctrl+c event
+            process.on("SIGINT", exitHandler.bind(this, { exit: true }));
+            // catches "kill pid" (for example: nodemon restart)
+            process.on("SIGUSR1", exitHandler.bind(this, { exit: true }));
+            process.on("SIGUSR2", exitHandler.bind(this, { exit: true }));
+            //catches uncaught exceptions
+            process.on("uncaughtException", exitHandler.bind(this, { exit: true }));
+            this.wsServer.onMessage("REMOVE_ALL", function () {
+                var files = fs.readdirSync(path.join(dir, ".flake", "results"));
+                files.forEach(function (file) {
+                    var p = path.join(dir, "/.flake/results/", file);
+                    if (fs.existsSync(p)) {
+                        fs.rmSync(p);
+                    }
+                });
+                submit([]);
+            });
+            this.wsServer.onMessage("RUN_ALL", function () {
+                runAllFiles();
+            });
+            this.wsServer.onMessage("OPEN_FILE", function (data) {
+                // Check if vscode is installed, then we can open at the specified line
+                if (data.hasOwnProperty("line") &&
+                    data.hasOwnProperty("column")) {
+                    var vsVersion = spawn("code", ["--version"]);
+                    vsVersion.on("close", function (code) {
+                        if (code === 0) {
+                            // VSCode is installed, open the file with that.
+                            spawn("code", [
+                                "--goto",
+                                "".concat(data.file, ":").concat(data.line, ":").concat(data.column),
+                            ]);
                         }
                         else {
                             open(data.file);
                         }
                     });
-                    printer.addHeader("Local server opened: http://localhost:".concat(WebServerPort));
-                    setWsHeader = printer.reserveHeader("WebSocket server opened on port ".concat(WebSocketServerPort, "; 0 clients connected;"));
-                    this.wsServer.onStateChange = function () {
-                        setWsHeader("WebSocket server opened on port ".concat(WebSocketServerPort, "; ").concat(_this.wsServer.connectionCount, " clients connected;"));
-                    };
-                    return [2 /*return*/];
-            }
+                }
+                else {
+                    open(data.file);
+                }
+            });
+            printer.addHeader("Local server opened: http://localhost:".concat(WebServerPort));
+            setWsHeader = printer.reserveHeader("WebSocket server opened on port ".concat(WebSocketServerPort, "; 0 clients connected;"));
+            this.wsServer.onStateChange = function () {
+                setWsHeader("WebSocket server opened on port ".concat(WebSocketServerPort, "; ").concat(_this.wsServer.connectionCount, " clients connected;"));
+            };
+            return [2 /*return*/];
         });
     }); })();
     //}
@@ -272,7 +277,8 @@ function SubmitFileChange(absFile, relFile, rules) {
                                         var settings, utils, newPath, addFileExtension;
                                         return __generator(this, function (_a) {
                                             settings = {};
-                                            settings[Properties.DEFAULT_FILE_EXTENSION] = "";
+                                            settings[Properties.DEFAULT_FILE_EXTENSION] =
+                                                "";
                                             if (!module.default) {
                                                 error("A loader must export a default function!");
                                             }
@@ -352,8 +358,7 @@ function ManageResult(result, origin) {
         var contextLines = {};
         // We can't get any information about what lines we're looking at if we hit the end of the file, so we have to reorder the lines into an object ({line: content})
         for (var i = 0; i < lines.length; i++) {
-            if (i >= line - 3 &&
-                i <= line + 3) {
+            if (i >= line - config.contextualLines && i <= line + config.contextualLines) {
                 contextLines[i] = lines[i];
             }
         }

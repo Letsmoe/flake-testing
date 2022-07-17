@@ -21,7 +21,7 @@ export function isfile(path: string): boolean {
 }
 
 
-export function ScanDirectory(dir: string, main: string): [string, string][] {
+export function searchDirectory(dir: string, depth: number = Infinity, currentDepth: number = 0): string[] {
 	// An array to store all found files.
 	var arrFiles = [];
 	if (isdir(dir)) {
@@ -30,9 +30,11 @@ export function ScanDirectory(dir: string, main: string): [string, string][] {
 			let p = path.join(dir, files[i]);
 
 			if (isdir(p)) {
-				arrFiles = arrFiles.concat(ScanDirectory(p, main));
+				if ((currentDepth + 1) < depth) {
+					arrFiles = arrFiles.concat(searchDirectory(p, depth, currentDepth + 1));
+				}
 			} else {
-				arrFiles.push([p, p.replace(main, "")]);
+				arrFiles.push(p);
 			}
 		}
 	}

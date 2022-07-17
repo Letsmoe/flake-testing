@@ -50,7 +50,9 @@ export function isdir(path) {
 export function isfile(path) {
     return fs.existsSync(path) && fs.statSync(path).isFile();
 }
-export function ScanDirectory(dir, main) {
+export function searchDirectory(dir, depth, currentDepth) {
+    if (depth === void 0) { depth = Infinity; }
+    if (currentDepth === void 0) { currentDepth = 0; }
     // An array to store all found files.
     var arrFiles = [];
     if (isdir(dir)) {
@@ -58,10 +60,12 @@ export function ScanDirectory(dir, main) {
         for (var i = 0; i < files.length; i++) {
             var p = path.join(dir, files[i]);
             if (isdir(p)) {
-                arrFiles = arrFiles.concat(ScanDirectory(p, main));
+                if ((currentDepth + 1) < depth) {
+                    arrFiles = arrFiles.concat(searchDirectory(p, depth, currentDepth + 1));
+                }
             }
             else {
-                arrFiles.push([p, p.replace(main, "")]);
+                arrFiles.push(p);
             }
         }
     }

@@ -111,18 +111,18 @@ export interface FlakeConfigObject {
      * The directory to search for test files.
      * @default "./"
      */
-    dir?: string;
+    dir: string;
     /**
      * Whether to deeply search for test files in the current directory,
      * when this option is enabled files in subdirectories will be included as well.
-     * @default true;
+     * @default true
      */
     deepSearch?: boolean;
     /**
      * Whether to compare to truthiness or strict "true"
-     * @default true;
+     * @default false
      */
-    strictCompare: boolean;
+    strictCompare?: boolean;
     /**
      * How many lines should be visible around an error to contextualize the error message.
      * @default 3
