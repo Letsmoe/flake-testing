@@ -2,7 +2,7 @@ const path = require('path');
 
 module.exports = [{
 	mode: "production",
-	entry: "./lib/executeFile.js",
+	entry: "./dist/loader.js",
 	experiments: {
 		outputModule: true
 	},

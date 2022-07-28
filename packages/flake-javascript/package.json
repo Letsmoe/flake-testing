@@ -1,6 +1,6 @@
 {
 	"name": "@flake-universal/javascript",
-	"version": "1.0.0",
+	"version": "1.0.1",
 	"type": "module",
 	"description": "A full-on testing library for end-to-end and unit tests in any language.",
 	"main": "./dist/loader.js",
@@ -19,7 +19,7 @@
 		"@types/ws": "^8.5.3"
 	},
 	"dependencies": {
-		"@flake-universal/core": "file:../core",
+		"@flake-universal/core": "^1.0.1",
 		"acorn": "^8.7.1",
 		"acorn-walk": "^8.2.0",
 		"colarg": "^1.1.4",

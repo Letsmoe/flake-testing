@@ -1,6 +1,6 @@
 {
 	"name": "@flake-universal/core",
-	"version": "1.0.0",
+	"version": "1.0.2",
 	"type": "module",
 	"description": "Core package of flake-universal.",
 	"main": "./dist/index.js",
@@ -20,8 +20,8 @@
 	"author": "letsmoe",
 	"license": "MIT",
 	"dependencies": {
-		"@flake-universal/javascript": "file:../flake-javascript",
-		"@flake-universal/python": "file:../flake-python",
+		"@flake-universal/javascript": "^1.0.1",
+		"@flake-universal/python": "^1.0.0",
 		"@snowblind/core": "^2.1.6",
 		"boxen": "^7.0.0",
 		"chokidar": "^3.5.3",

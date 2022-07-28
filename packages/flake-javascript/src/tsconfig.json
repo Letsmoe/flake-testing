@@ -3,7 +3,7 @@
 		"target": "es2020",
 		"moduleResolution": "node",
 		"declaration": true,
-		"declarationDir": "../dist/",
+		"declarationDir": "../typings/",
 		"declarationMap": true,
 		"outDir": "../dist/",
 		"module": "es2022",
