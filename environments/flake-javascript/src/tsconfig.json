@@ -1,0 +1,14 @@
+{
+	"compilerOptions": {
+		"target": "es2020",
+		"moduleResolution": "node",
+		"declaration": true,
+		"declarationDir": "../typings/",
+		"declarationMap": true,
+		"outDir": "../dist/",
+		"module": "es2022",
+		"allowSyntheticDefaultImports": true,
+		"strict": false
+	},
+	"compileOnSave": true
+}

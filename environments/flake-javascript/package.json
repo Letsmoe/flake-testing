@@ -1,0 +1,21 @@
+{
+	"name": "flake-javascript",
+	"type": "module",
+	"version": "1.0.3",
+	"description": "Tools for executing tests with @flake-universal",
+	"main": "./dist/index.min.js",
+	"types": "./dist/index.d.ts",
+	"scripts": {
+		"test": "flake -p=./dist/test/flake.config.json -w=false",
+		"build": "webpack --config=webpack.config.cjs",
+		"build:watch": "webpack --config=webpack.config.cjs --watch"
+	},
+	"author": "letsmoe",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^18.0.3"
+	},
+	"dependencies": {
+		"@flake-universal/core": "^1.0.1"
+	}
+}

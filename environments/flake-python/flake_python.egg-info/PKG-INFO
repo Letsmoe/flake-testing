@@ -1,0 +1,10 @@
+Metadata-Version: 2.1
+Name: flake-python
+Version: 1.0.1
+Summary: Tools for executing tests in Python with @flake-universal
+Home-page: http://pypi.python.org/pypi/flake-python/
+Author: Letsmoe
+Author-email: letsmoe1404@gmail.com
+License: LICENSE
+Requires-Python: >=3.6
+License-File: LICENSE

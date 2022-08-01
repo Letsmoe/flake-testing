@@ -1,0 +1,8 @@
+{
+	"watch": true,
+	"watchOptions": {
+		"poll": 100
+	},
+	"dir": "./",
+	"useDefaultLoaders": true
+}
